@@ -102,7 +102,9 @@ var BlkSmart = (() => {
       if (!t || t.length > 22) continue;
       if (LABELS.has(t.toLowerCase().replace(/[:·|•\s]+$/, ""))) {
         const r = el.getBoundingClientRect();
-        add(containerFor(el, area(r) * 6), 3);
+        // A big element whose only text is "Advertisement" is the ad box itself;
+        // a small label sits inside a bigger box we climb to.
+        add(area(r) >= 3000 ? el : containerFor(el, area(r) * 6), 3);
       }
     }
 

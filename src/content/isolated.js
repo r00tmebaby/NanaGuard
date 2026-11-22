@@ -60,6 +60,9 @@
     if (Object.values(settings.guards).some(Boolean)) {
       BlkGuard.start({ host: host.toLowerCase(), settings, send, message, warn: BlkWarn.show });
     }
+    if (/(^|\.)youtube\.com$/.test(host) && (settings.guards.ai || settings.guards.factcheck)) {
+      BlkYouTube.start({ settings, send, message, warn: BlkWarn.show });
+    }
 
     // Background injects CSS (site hiding, learned + user-hidden elements) and returns
     // the procedural filters that need JavaScript.

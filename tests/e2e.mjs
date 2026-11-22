@@ -371,6 +371,43 @@ try {
   await g.close();
   await worker.evaluate(async () => { await chrome.storage.sync.set({ guards: {} }); });
 
+  /* --- AI / deepfake videos + fact checks --- */
+  const ytTab = await visit(`http://docs.test:${port}/plain`, 500);
+  const ytTabId = await worker.evaluate(async () => (await chrome.tabs.query({ url: "http://docs.test/*" }))[0].id);
+  const yt = await worker.evaluate(async (id) => {
+    const [{ result }] = await chrome.scripting.executeScript({ target: { tabId: id }, func: () => ({
+      scam: BlkYouTube.assess({ title: "Elon Musk LIVE: Bitcoin giveaway – send BTC and get 2x back", live: true }).flagged,
+      health: BlkYouTube.assess({ title: "Dr Oz: this one weird trick reverses diabetes in 7 days" }).flagged,
+      invest: BlkYouTube.assess({ title: "Martin Lewis reveals: Quantum AI trading platform pays guaranteed returns" }).flagged,
+      news: BlkYouTube.assess({ title: "Elon Musk interview: Tesla, SpaceX and the Bitcoin price" }).flagged,
+      mrbeast: BlkYouTube.assess({ title: "MrBeast gives away $1,000,000 to strangers" }).flagged,
+      cooking: BlkYouTube.assess({ title: "How to cook pasta like an Italian grandma" }).flagged,
+      label: BlkYouTube.hasAiLabel("How this content was made · Altered or synthetic content · Sound or visuals were significantly edited"),
+      noLabel: BlkYouTube.hasAiLabel("Is AI changing music forever? My honest opinion"),
+    }) });
+    return result;
+  }, ytTabId);
+  await ytTab.close();
+  check("deepfake: celebrity crypto giveaway flagged", yt.scam);
+  check("deepfake: celebrity miracle-cure flagged", yt.health);
+  check("deepfake: celebrity investment scam flagged", yt.invest);
+  check("deepfake: normal celebrity news NOT flagged", !yt.news && !yt.mrbeast && !yt.cooking, JSON.stringify(yt));
+  check("AI label: YouTube's disclosure recognised", yt.label && !yt.noLabel);
+
+  const fcUrl = await worker.evaluate(() => [BLK.factCheckUrl("google", "the moon is made of cheese"), BLK.factCheckUrl("factcheck", "x"), BLK.factCheckUrl("chatgpt", "y", "https://a.test/")]);
+  check("fact check: URLs built", fcUrl[0].startsWith("https://www.google.com/search?q=the%20moon") && fcUrl[1].startsWith("https://toolbox.google.com/factcheck/") && fcUrl[2].startsWith("https://chatgpt.com/?q="), fcUrl.join(" | "));
+  await worker.evaluate(() => blockify.openCheck("factcheck", "drinking bleach cures covid", null, null));
+  const fcTab = await waitFor(async () => (await browser.pages()).find((p) => p.url().includes("toolbox.google.com/factcheck")), 8000);
+  check("fact check: opens in a new tab", !!fcTab);
+  if (fcTab) await fcTab.close();
+
+  // Real YouTube: the "Check facts" button appears under the title (needs internet).
+  const ytp = await visit("https://www.youtube.com/watch?v=jNQXAC9IVRw", 9000);
+  const ytButton = await ytp.evaluate(() => !!document.querySelector("ytd-watch-metadata blockify-check")).catch(() => false);
+  check("youtube: 'Check facts' button shown on real YouTube", ytButton, ytp.url().slice(0, 60));
+  check("youtube: no false deepfake/AI warning on a normal video", !(await hasWarning(ytp)));
+  await ytp.close();
+
   /* --- allowlist turns everything off --- */
   await worker.evaluate(async () => { await chrome.storage.sync.set({ blocklist: [], allowlist: ["localhost"] }); });
   await waitFor(async () => (await worker.evaluate(async () =>

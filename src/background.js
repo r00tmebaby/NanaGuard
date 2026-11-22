@@ -444,10 +444,44 @@ async function officialSite(name) {
   return domains;
 }
 
+/* ---------------- "Check facts" ---------------- */
+
+const menus = api.contextMenus || api.menus;
+const MENU_CONTEXTS = ["selection", "page", "link", "video", "image"];
+
+async function updateMenus() {
+  if (!menus) return;
+  await menus.removeAll();
+  const { enabled, guards } = await BLK.getSettings();
+  if (!enabled || !guards.factcheck) return;
+  menus.create({ id: "blk", title: "Check facts with Blockify", contexts: MENU_CONTEXTS });
+  for (const [engine, title] of Object.entries(BLK.FACT_ENGINES)) {
+    menus.create({ id: `blk-${engine}`, parentId: "blk", title, contexts: MENU_CONTEXTS });
+  }
+}
+
+function openCheck(engine, text, pageUrl, tab) {
+  if (!(engine in BLK.FACT_ENGINES) || !String(text || "").trim()) return Promise.resolve(false);
+  const props = { url: BLK.factCheckUrl(engine, text, pageUrl) };
+  if (tab) {
+    props.index = tab.index + 1;
+    props.openerTabId = tab.id;
+  }
+  return api.tabs.create(props).then(() => true);
+}
+
+menus?.onClicked.addListener((info, tab) => {
+  const engine = String(info.menuItemId).replace(/^blk-/, "");
+  // Selected text first, then link text / image alt (Firefox), then the page title.
+  const text = info.selectionText || info.linkText || (tab && tab.title) || "";
+  openCheck(engine, text, info.pageUrl, tab);
+});
+
 /* ---------------- events ---------------- */
 
 api.runtime.onInstalled.addListener(async ({ reason }) => {
   await applySettings();
+  await updateMenus();
   await enableActionCount();
   api.action.setBadgeBackgroundColor({ color: "#4f46e5" });
   api.action.setBadgeTextColor?.({ color: "#ffffff" });
@@ -459,6 +493,7 @@ api.runtime.onInstalled.addListener(async ({ reason }) => {
 
 api.runtime.onStartup.addListener(() => {
   applySettings();
+  updateMenus();
   enableActionCount();
 });
 
@@ -466,6 +501,7 @@ api.storage.onChanged.addListener((changes, area) => {
   if (area === "sync" && (changes.enabled || changes.lists || changes.ads || changes.allowlist || changes.blocklist || changes.guards)) {
     applySettings();
   }
+  if (area === "sync" && (changes.enabled || changes.guards)) updateMenus();
   if (area === "local" && changes.learnedNetworks) {
     const was = Object.entries(changes.learnedNetworks.oldValue || {}).filter(([, v]) => v.blocked && !v.ignored).length;
     const now = Object.entries(changes.learnedNetworks.newValue || {}).filter(([, v]) => v.blocked && !v.ignored).length;
@@ -518,6 +554,9 @@ api.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     case "officialSite":
       if (!fromPage) return false;
       return reply(officialSite(msg.name));
+    case "factCheck":
+      // From the YouTube button (page) or the popup; only builds our own search URLs.
+      return reply(openCheck(msg.engine, msg.text, msg.url, sender.tab));
     case "closeTab":
       if (!sender.tab) return false;
       return reply(api.tabs.remove(sender.tab.id));
@@ -569,4 +608,4 @@ api.tabs.onRemoved.addListener((tabId) => {
 });
 
 // Expose for tests/debugging in the service worker console.
-globalThis.blockify = { applySettings, cosmeticFor, learn, getMeta, officialSite };
+globalThis.blockify = { applySettings, cosmeticFor, learn, getMeta, officialSite, updateMenus, openCheck };

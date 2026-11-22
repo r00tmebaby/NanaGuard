@@ -47,6 +47,16 @@
     <div class="card count"><strong id="tabCount">0</strong><span class="muted">tricks stopped</span></div>
   </section>
 
+  <section id="checkCard" class="card check" hidden>
+    <div class="label">Is this true?</div>
+    <p id="checkText" class="check-text"></p>
+    <div class="check-btns">
+      <button class="btn" data-engine="google">🔎 Google</button>
+      <button class="btn" data-engine="factcheck">Fact-checkers</button>
+      <button class="btn" data-engine="chatgpt">Ask ChatGPT</button>
+    </div>
+  </section>
+
   <div id="smartRow" class="card smart row" hidden>
     <span><b id="smartCount">0</b> ads spotted automatically on this page</span>
     <button id="smartUndo" class="btn small-btn" title="Stop smart detection on this site and forget what it learned here">Undo</button>

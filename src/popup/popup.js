@@ -130,6 +130,27 @@
     window.close();
   });
 
+  // "Is this true?": selected text on the page, otherwise the page title.
+  (async () => {
+    const { enabled, guards } = await BLK.getSettings();
+    if (!enabled || !guards.factcheck || !host) return;
+    let text = "";
+    try {
+      const [{ result }] = await api.scripting.executeScript({ target: { tabId: tab.id }, func: () => String(getSelection()).trim() });
+      text = result || "";
+    } catch { /* restricted page */ }
+    const subject = text || (tab.title || "").replace(/\s[-|–—]\s[^-|–—]+$/, "");
+    if (!subject) return;
+    $("checkText").textContent = (text ? "Selected: " : "This page: ") + `“${subject.slice(0, 160)}”`;
+    $("checkCard").hidden = false;
+    for (const b of document.querySelectorAll("[data-engine]")) {
+      b.addEventListener("click", async () => {
+        await api.runtime.sendMessage({ cmd: "factCheck", engine: b.dataset.engine, text: subject, url: tab.url });
+        window.close();
+      });
+    }
+  })();
+
   $("grant").addEventListener("click", async () => {
     if (await api.permissions.request(ALL_SITES)) await applyAndReload();
     render();

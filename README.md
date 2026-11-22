@@ -10,9 +10,9 @@ Works in **Chrome, Edge, Brave, Opera** and **Firefox**.
 
 ## What it does
 
-🚫 **Blocks ads, trackers and popups**: including YouTube ads and cookie banners.
+**Blocks ads, trackers and popups**: including YouTube ads and cookie banners.
 
-🛡️ **Stops scams before they happen**
+**Stops scams before they happen**
 - Warns you on **fake websites** pretending to be PayPal, your bank or Amazon
 - Warns if you type your **bank or email password on the wrong site**
 - Blocks fake **"I'm not a robot – press Windows + R"** tricks that install viruses
@@ -20,9 +20,14 @@ Works in **Chrome, Edge, Brave, Opera** and **Firefox**.
 - Shows a clear warning before opening **known malware and phishing sites**
 - Stops fake **"Your PC is infected"** screens, alert loops and notification spam
 
-🧠 **Learns as you browse**: it spots ads no list knows about (the "Ad" and "Sponsored" labels, standard banner sizes), remembers them, and blocks an ad company everywhere once it has seen it on 3 different sites.
+**Spots AI fakes and checks facts**
+- Shows YouTube's hidden **"altered or synthetic content"** label clearly, so you know when a video is AI-made
+- Warns about **deepfake scam videos**: fake celebrities promoting crypto giveaways, "investment platforms" or miracle cures
+- **Check facts** in one click: right-click any text, use the button under YouTube videos, or open the toolbar popup. Google, fact-checkers or ChatGPT open in a new tab.
 
-🔒 **Private**: no accounts, no tracking. Everything stays on your computer.
+**Learns as you browse**: it spots ads no list knows about (the "Ad" and "Sponsored" labels, standard banner sizes), remembers them, and blocks an ad company everywhere once it has seen it on 3 different sites.
+
+**Private**: no accounts, no tracking. Everything stays on your computer.
 
 ---
 
@@ -32,6 +37,10 @@ Works in **Chrome, Edge, Brave, Opera** and **Firefox**.
 <tr>
 <td width="50%"><img src="docs/screenshots/warning-fake-site.png" alt="Fake website warning"><br><sub><b>Fake website</b>: you're told where the real site is.</sub></td>
 <td width="50%"><img src="docs/screenshots/danger-page.png" alt="Dangerous site page"><br><sub><b>Dangerous site</b>: stopped before it loads.</sub></td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/warning-deepfake.png" alt="Deepfake scam warning"><br><sub><b>Deepfake scam video</b>: the video is paused before you send anything.</sub></td>
+<td valign="top"><img src="docs/screenshots/youtube-check-facts.png" alt="Check facts buttons on YouTube"><br><sub><b>Check facts</b>: one click under any YouTube video.</sub></td>
 </tr>
 <tr>
 <td><img src="docs/screenshots/settings-protection.png" alt="Protection settings"><br><sub><b>Settings → Protection</b>: switch each protection on or off.</sub></td>
@@ -49,9 +58,9 @@ Works in **Chrome, Edge, Brave, Opera** and **Firefox**.
 1. Download the latest zip from **[Releases](../../releases/latest)** (`blockify-chrome` for Chrome/Edge/Brave/Opera, `blockify-firefox` for Firefox) and unzip it.
 2. **Chrome / Edge:** open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked**, and pick the unzipped folder.
    **Firefox:** open `about:debugging#/runtime/this-firefox`, click **Load Temporary Add-on**, and pick `manifest.json`.
-3. Pin the 🛡️ icon. Done.
+3. Pin the Blockify icon to the toolbar. Done.
 
-> 💡 Also turn on your browser's own protection: **Chrome → Settings → Privacy and security → Security → Enhanced protection**. It works alongside Blockify.
+> **Tip:** also turn on your browser's own protection: **Chrome → Settings → Privacy and security → Security → Enhanced protection**. It works alongside Blockify.
 
 ## Using it
 
@@ -67,7 +76,7 @@ Works in **Chrome, Edge, Brave, Opera** and **Firefox**.
 ```bash
 npm run filters    # download & compile filter lists into rules/
 npm run check      # validate rules and files
-npm install && npm run test:e2e   # 60 end-to-end checks in real Chrome
+npm install && npm run test:e2e   # 69 end-to-end checks in real Chrome
 npm run build      # store-ready zips in dist/
 ```
 

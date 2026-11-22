@@ -22,7 +22,26 @@ var BLK = Object.freeze({
     password: { title: "Password alert", desc: "Warns if you type the password of an important site (bank, email, PayPal…) on a different website. Only a scrambled fingerprint is stored, never the password." },
     clickfix: { title: "Fake 'verify you're human' guard", desc: "Blocks pages that secretly copy a virus command and tell you to press Windows + R and paste it." },
     scam: { title: "Scam request warnings", desc: "Warns when a page asks you to install remote-access apps, pay with gift cards or Bitcoin, or call a 'support' number." },
+    ai: { title: "AI & deepfake video warnings", desc: "Shows YouTube's hidden 'altered or synthetic content' label clearly, and warns about deepfake scam videos (fake celebrity crypto giveaways, miracle cures)." },
+    factcheck: { title: "'Check facts' buttons", desc: "Right-click any text → Check facts, plus a button under YouTube videos. Opens Google, fact-checkers or ChatGPT in a new tab." },
   }),
+
+  FACT_ENGINES: Object.freeze({
+    google: "Search Google",
+    factcheck: "Search fact-checkers",
+    chatgpt: "Ask ChatGPT",
+  }),
+
+  /** Builds the new-tab URL for a fact check. Nothing is sent until the user clicks. */
+  factCheckUrl(engine, text, pageUrl) {
+    const t = String(text || "").replace(/\s+/g, " ").trim().slice(0, 300);
+    if (engine === "factcheck") return `https://toolbox.google.com/factcheck/explorer/search/${encodeURIComponent(t)};hl=en`;
+    if (engine === "chatgpt") {
+      const where = pageUrl ? ` (I saw it here: ${pageUrl})` : "";
+      return `https://chatgpt.com/?q=${encodeURIComponent(`Is this true, misleading or a scam? Check reliable sources and fact-checkers, then explain simply for a non-technical reader: "${t}"${where}`)}`;
+    }
+    return `https://www.google.com/search?q=${encodeURIComponent(`${t} fact check`)}`;
+  },
 
   async setGuard(key, on) {
     const { guards } = await BLK.getSettings();
@@ -34,6 +53,8 @@ var BLK = Object.freeze({
     password: "Password-reuse alerts",
     clickfix: "Fake 'verify' commands blocked",
     scam: "Scam requests flagged",
+    deepfake: "Deepfake scam videos flagged",
+    ailabel: "AI-labelled videos shown",
     smart: "Ads auto-detected",
     popup: "Popups & popunders",
     notification: "Notification prompts",
