@@ -89,7 +89,7 @@ var BlkYouTube = (() => {
       border-radius:999px;padding:7px 12px;cursor:pointer;margin-right:6px}button:hover{background:#e0e7ff}
       @media (prefers-color-scheme: dark){button{background:#1e1b4b;color:#c7d2fe;border-color:#3730a3}}`;
     root.append(style);
-    for (const [engine, label] of [["google", "🔎 Check facts"], ["factcheck", "Fact-checkers"], ["chatgpt", "Ask ChatGPT"]]) {
+    for (const [engine, label] of [["news", "Check facts: other sources"], ["factcheck", "Fact-checkers"], ["chatgpt", "Ask ChatGPT"]]) {
       const b = document.createElement("button");
       b.textContent = label;
       b.title = `${BLK.FACT_ENGINES[engine]} about this video (opens a new tab)`;

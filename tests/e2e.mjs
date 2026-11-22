@@ -49,6 +49,19 @@ const PAGES = {
     <p>Your social security number has been suspended. To avoid arrest you must pay the fine today with Google Play gift cards.</p>
     <p>Scratch the back of the card and read the code to the officer immediately.</p></main>`,
 };
+const MODAL = (body, delay) => `<!doctype html><title>News</title><style>
+  .bd{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9998}
+  .md{position:fixed;top:20%;left:30%;width:40%;padding:24px;background:#fff;z-index:9999;font-family:sans-serif}</style>
+  <h1>Markets rally as inflation cools</h1><p>Long article text about the economy and markets. More text follows here.</p>
+  <script>
+  function openNag(){document.body.style.overflow='hidden';
+    document.body.insertAdjacentHTML('beforeend','<div class="bd" id="bd"></div><div class="md" id="md" role="dialog">${body}</div>');
+    const no=document.getElementById('no'); if(no) no.onclick=()=>{window.__dismissed=true;document.getElementById('md').remove();document.getElementById('bd').remove();document.body.style.overflow='';};}
+  ${delay ? `setTimeout(openNag, ${delay});` : ""}
+  </script><button id="sub" onclick="openNag()">Subscribe</button>`;
+PAGES["/nag"] = MODAL(`<b>CYBER SALE</b><p><s>$89</s> $49.99 For Your First Year</p><p>Get trusted news, expert analysis, and more—for less than $1/week.</p><button>Redeem Offer</button><button id=no>No Thanks</button>`, 800);
+PAGES["/nag-x"] = MODAL(`<button aria-label=Close>×</button><h2>Subscribe to our newsletter</h2><p>Unlimited access for £1/week. Don't miss out!</p><input placeholder=Email><button>Sign up</button>`, 800);
+PAGES["/nag-user"] = MODAL(`<h2>Subscribe</h2><p>Unlimited access for $1/week. Special offer!</p><button id=no>No Thanks</button>`, 0);
 const server = http.createServer((req, res) => {
   res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
   const page = PAGES[req.url.split("?")[0]];
@@ -371,6 +384,23 @@ try {
   await g.close();
   await worker.evaluate(async () => { await chrome.storage.sync.set({ guards: {} }); });
 
+  /* --- subscription / newsletter popups --- */
+  before = await stat("nag");
+  g = await visit(`http://news-site.test:${port}/nag`, 3000);
+  const nag1 = await g.evaluate(() => ({ dismissed: !!window.__dismissed, modal: !!document.getElementById("md"), scroll: getComputedStyle(document.body).overflow }));
+  check("popups: 'CYBER SALE … No Thanks' auto-dismissed via its own button", nag1.dismissed && !nag1.modal, JSON.stringify(nag1));
+  check("popups: counted", (await stat("nag")) > before);
+  await g.close();
+  g = await visit(`http://news-site.test:${port}/nag-x`, 3000);
+  const nag2 = await g.evaluate(() => ({ modal: !!document.getElementById("md") && getComputedStyle(document.getElementById("md")).display !== "none", backdrop: !!document.getElementById("bd"), scroll: getComputedStyle(document.body).overflow }));
+  check("popups: newsletter box with only × closed, page scrolls again", !nag2.modal && !nag2.backdrop && nag2.scroll !== "hidden", JSON.stringify(nag2));
+  await g.close();
+  g = await visit(`http://news-site.test:${port}/nag-user`, 1000);
+  await g.click("#sub");
+  await sleep(2500);
+  check("popups: a box YOU opened stays open", await g.evaluate(() => !!document.getElementById("md")));
+  await g.close();
+
   /* --- AI / deepfake videos + fact checks --- */
   const ytTab = await visit(`http://docs.test:${port}/plain`, 500);
   const ytTabId = await worker.evaluate(async () => (await chrome.tabs.query({ url: "http://docs.test/*" }))[0].id);
@@ -394,8 +424,12 @@ try {
   check("deepfake: normal celebrity news NOT flagged", !yt.news && !yt.mrbeast && !yt.cooking, JSON.stringify(yt));
   check("AI label: YouTube's disclosure recognised", yt.label && !yt.noLabel);
 
-  const fcUrl = await worker.evaluate(() => [BLK.factCheckUrl("google", "the moon is made of cheese"), BLK.factCheckUrl("factcheck", "x"), BLK.factCheckUrl("chatgpt", "y", "https://a.test/")]);
-  check("fact check: URLs built", fcUrl[0].startsWith("https://www.google.com/search?q=the%20moon") && fcUrl[1].startsWith("https://toolbox.google.com/factcheck/") && fcUrl[2].startsWith("https://chatgpt.com/?q="), fcUrl.join(" | "));
+  const headline = "Deutsche Bank Leak Reveals $582 Million In Epstein Payments, Accidental Trump Tax Disclosure";
+  const fcUrl = await worker.evaluate((h) => [BLK.factCheckUrl("google", "the moon is made of cheese"), BLK.factCheckUrl("factcheck", h),
+    BLK.factCheckUrl("chatgpt", "y", "https://a.test/"), BLK.factCheckUrl("news", h), BLK.keywords(h)], headline);
+  check("fact check: URLs built", fcUrl[0].startsWith("https://www.google.com/search?q=the%20moon") && fcUrl[1].startsWith("https://toolbox.google.com/factcheck/") &&
+    fcUrl[2].startsWith("https://chatgpt.com/?q=") && fcUrl[3].startsWith("https://news.google.com/search?q="), fcUrl.slice(0, 4).join(" | "));
+  check("fact check: headline shortened to keywords", fcUrl[4] === "Deutsche Bank $582 Epstein Payments", fcUrl[4]);
   await worker.evaluate(() => blockify.openCheck("factcheck", "drinking bleach cures covid", null, null));
   const fcTab = await waitFor(async () => (await browser.pages()).find((p) => p.url().includes("toolbox.google.com/factcheck")), 8000);
   check("fact check: opens in a new tab", !!fcTab);

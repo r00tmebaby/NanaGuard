@@ -14,7 +14,7 @@ var BLK = Object.freeze({
     ads: { title: "Ads & banners", desc: "EasyList, uBlock filters and Peter Lowe's list." },
     privacy: { title: "Trackers", desc: "EasyPrivacy and uBlock privacy. Also strips tracking tags (utm_…) from links." },
     security: { title: "Malware & phishing", desc: "URLhaus and phishing lists. Dangerous sites show a warning page." },
-    annoyances: { title: "Cookie banners & annoyances", desc: "Fanboy cookie list and uBlock annoyances." },
+    annoyances: { title: "Cookie banners & annoyances", desc: "Fanboy cookie & annoyance lists and uBlock annoyances. Also auto-closes 'Subscribe / special offer / No thanks' popups." },
   }),
 
   GUARD_INFO: Object.freeze({
@@ -27,15 +27,34 @@ var BLK = Object.freeze({
   }),
 
   FACT_ENGINES: Object.freeze({
-    google: "Search Google",
+    news: "Other news sources",
     factcheck: "Search fact-checkers",
     chatgpt: "Ask ChatGPT",
+    google: "Search Google",
   }),
+
+  /** Short keyword query from a headline/claim: drops filler words, keeps names and numbers.
+   *  "Deutsche Bank Leak Reveals $582 Million In Epstein Payments, …" → "Deutsche Bank $582 Epstein Payments" */
+  keywords(text, max = 5, numbers = true) {
+    const FILLER = new Set(("a an the and or but nor of in on at to for from by with as is are was were be been being this that these " +
+      "those it its into onto over under after before about than then so such not no you your we our they their he she his her i " +
+      "me my us how why what when who whom which will would could should may might can just more most very new says said say " +
+      "reveals revealed reveal report reports reported leak leaks leaked claims claim breaking exclusive update live video watch " +
+      "photos million billion thousand trillion accidental shocking amid finally now here there get gets got true " +
+      "false fake real really confirms confirmed confirm does did do has have had").split(" "));
+    const firstClause = String(text || "").split(/[,:;|–—]|\s-\s/)[0];
+    const words = firstClause.replace(/[“”"'’‘()[\]?!]/g, "").split(/[^\p{L}\p{N}$%.£€]+/u)
+      .map((w) => w.replace(/^\.+|\.+$/g, ""))
+      .filter((w) => w.length > 1 && !FILLER.has(w.toLowerCase()) && (numbers || !/\d/.test(w)));
+    return (words.length ? words : String(text || "").split(/\s+/)).slice(0, max).join(" ");
+  },
 
   /** Builds the new-tab URL for a fact check. Nothing is sent until the user clicks. */
   factCheckUrl(engine, text, pageUrl) {
     const t = String(text || "").replace(/\s+/g, " ").trim().slice(0, 300);
-    if (engine === "factcheck") return `https://toolbox.google.com/factcheck/explorer/search/${encodeURIComponent(t)};hl=en`;
+    if (engine === "news") return `https://news.google.com/search?q=${encodeURIComponent(BLK.keywords(t, 6))}&hl=en`;
+    // Fact-checker search matches reviewed claims by keyword: short, no figures.
+    if (engine === "factcheck") return `https://toolbox.google.com/factcheck/explorer/search/${encodeURIComponent(BLK.keywords(t, 5, false))};hl=en`;
     if (engine === "chatgpt") {
       const where = pageUrl ? ` (I saw it here: ${pageUrl})` : "";
       return `https://chatgpt.com/?q=${encodeURIComponent(`Is this true, misleading or a scam? Check reliable sources and fact-checkers, then explain simply for a non-technical reader: "${t}"${where}`)}`;
@@ -53,6 +72,7 @@ var BLK = Object.freeze({
     password: "Password-reuse alerts",
     clickfix: "Fake 'verify' commands blocked",
     scam: "Scam requests flagged",
+    nag: "Subscription popups closed",
     deepfake: "Deepfake scam videos flagged",
     ailabel: "AI-labelled videos shown",
     smart: "Ads auto-detected",

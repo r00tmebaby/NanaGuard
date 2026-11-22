@@ -36,6 +36,7 @@ const SOURCES = [
   { id: "urlhaus", cat: "security", title: "URLhaus malware", url: "https://malware-filter.gitlab.io/malware-filter/urlhaus-filter-domains-online.txt" },
   { id: "phishing", cat: "security", title: "Phishing filter", url: "https://malware-filter.gitlab.io/malware-filter/phishing-filter-domains.txt" },
   { id: "cookies", cat: "annoyances", title: "Fanboy cookie banners", url: "https://secure.fanboy.co.nz/fanboy-cookiemonster.txt" },
+  { id: "fanboy-annoyance", cat: "annoyances", title: "Fanboy annoyances", url: "https://secure.fanboy.co.nz/fanboy-annoyance.txt" },
   { id: "ubo-annoyances", cat: "annoyances", title: "uBlock annoyances", url: UBO + "annoyances-others.txt" },
 ];
 const CATEGORIES = ["ads", "privacy", "security", "annoyances"];

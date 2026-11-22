@@ -448,14 +448,17 @@ var BlkGuard = (() => {
       if (guards.phishing && !siteWarned) siteWarned = await checkSite(ctx);
       if (guards.scam && scamRuns++ < 5) checkScams(ctx);
     };
+    // Reading page text (innerText) forces layout, so wait until the page has fully loaded
+    // and the browser is idle: never compete with the page's own first render.
+    const idle = (fn) => (globalThis.requestIdleCallback ? requestIdleCallback(fn, { timeout: 2000 }) : setTimeout(fn, 200));
     let timer = 0;
-    const schedule = () => { if (!timer) timer = setTimeout(() => { timer = 0; run(); }, 1500); };
+    const schedule = () => { if (!timer) timer = setTimeout(() => { timer = 0; idle(run); }, 1500); };
     const begin = () => {
-      run();
+      idle(run);
       new MutationObserver(schedule).observe(document.documentElement, { childList: true, subtree: true });
     };
-    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", begin, { once: true });
-    else begin();
+    if (document.readyState === "complete") begin();
+    else addEventListener("load", begin, { once: true });
   }
 
   return { start, analyzeHost, toUnicode, isOfficial, BRANDS, sha256 };

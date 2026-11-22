@@ -1,11 +1,11 @@
 {
-  "generated": "2026-11-22T16:49:41.385Z",
+  "generated": "2026-11-22T18:18:18.527Z",
   "sources": [
     {
       "id": "easylist",
       "cat": "ads",
       "title": "EasyList",
-      "version": "202611221647",
+      "version": "202611221803",
       "ok": true
     },
     {
@@ -40,7 +40,7 @@
       "id": "easyprivacy",
       "cat": "privacy",
       "title": "EasyPrivacy",
-      "version": "202611221647",
+      "version": "202611221808",
       "ok": true
     },
     {
@@ -72,6 +72,13 @@
       "ok": true
     },
     {
+      "id": "fanboy-annoyance",
+      "cat": "annoyances",
+      "title": "Fanboy annoyances",
+      "version": "202611212235",
+      "ok": true
+    },
+    {
       "id": "ubo-annoyances",
       "cat": "annoyances",
       "title": "uBlock annoyances",
@@ -85,10 +92,10 @@
       "firstBlockId": 2417,
       "firstParamId": 9044,
       "genericSelectors": 13500,
-      "siteSelectors": 16593,
+      "siteSelectors": 16595,
       "proceduralSelectors": 691,
-      "scriptletHosts": 21588,
-      "scriptletCalls": 28770,
+      "scriptletHosts": 21589,
+      "scriptletCalls": 28771,
       "popupHosts": 2801
     },
     "privacy": {
@@ -113,19 +120,19 @@
       "dangerousHosts": 18560
     },
     "annoyances": {
-      "networkRules": 1982,
-      "firstBlockId": 447,
-      "firstParamId": 1982,
-      "genericSelectors": 15073,
-      "siteSelectors": 9071,
-      "proceduralSelectors": 145,
-      "scriptletHosts": 6279,
-      "scriptletCalls": 8026
+      "networkRules": 3398,
+      "firstBlockId": 561,
+      "firstParamId": 3398,
+      "genericSelectors": 26950,
+      "siteSelectors": 29480,
+      "proceduralSelectors": 582,
+      "scriptletHosts": 6859,
+      "scriptletCalls": 8843
     }
   },
   "skipped": {
-    "skippedNetwork": 1960,
-    "skippedCosmetic": 2990,
-    "skippedScriptlets": 946
+    "skippedNetwork": 1963,
+    "skippedCosmetic": 3112,
+    "skippedScriptlets": 960
   }
 }

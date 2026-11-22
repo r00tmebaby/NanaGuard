@@ -10,7 +10,7 @@ Works in **Chrome, Edge, Brave, Opera** and **Firefox**.
 
 ## What it does
 
-**Blocks ads, trackers and popups**: including YouTube ads and cookie banners.
+**Blocks ads, trackers and popups**: including YouTube ads, cookie banners and "Subscribe now / special offer / No thanks" boxes, which are closed for you automatically.
 
 **Stops scams before they happen**
 - Warns you on **fake websites** pretending to be PayPal, your bank or Amazon
@@ -23,7 +23,7 @@ Works in **Chrome, Edge, Brave, Opera** and **Firefox**.
 **Spots AI fakes and checks facts**
 - Shows YouTube's hidden **"altered or synthetic content"** label clearly, so you know when a video is AI-made
 - Warns about **deepfake scam videos**: fake celebrities promoting crypto giveaways, "investment platforms" or miracle cures
-- **Check facts** in one click: right-click any text, use the button under YouTube videos, or open the toolbar popup. Google, fact-checkers or ChatGPT open in a new tab.
+- **Check facts** in one click: right-click any text, use the buttons under YouTube videos, or open the toolbar popup. Choose **Other news sources** (is anyone else reporting it?), **Fact-checkers** (claims already reviewed by professionals), **ChatGPT** or **Google**, each opening in a new tab. Brand-new stories usually have no fact-check yet, so for news, "other sources" is the best first check.
 
 **Learns as you browse**: it spots ads no list knows about (the "Ad" and "Sponsored" labels, standard banner sizes), remembers them, and blocks an ad company everywhere once it has seen it on 3 different sites.
 
