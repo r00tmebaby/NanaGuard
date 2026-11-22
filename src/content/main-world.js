@@ -40,7 +40,7 @@
   // …disguised as a human check, or on a page telling you to open Run/Terminal and paste.
   const BAIT = /(captcha|i am not a robot|i'?m not a robot|not a robot|i am human|verif(y|ication)|cloudflare|ray id|✅|✔)/i;
   const PAGE_BAIT = /(win(dows)?\s*(key)?\s*(\+|and)\s*r\b|⊞\s*\+?\s*r\b|press\s+(the\s+)?windows\s+(key|button)|run dialog|ctrl\s*\+\s*v|cmd\s*\+\s*v|command\s*\+\s*v|paste\b.{0,30}\b(terminal|run box|run window|command))/i;
-  const SAFE_TEXT = "STOP! Kinguard blocked a dangerous command from a website. Do not paste anything a website tells you to. Close this window.";
+  const SAFE_TEXT = "STOP! KinGuard blocked a dangerous command from a website. Do not paste anything a website tells you to. Close this window.";
   const pageBait = () => {
     for (const d of [document, (() => { try { return window.top.document; } catch { return null; } })()]) {
       if (d && d.body && PAGE_BAIT.test(d.body.innerText.slice(0, 20000))) return true;
@@ -199,7 +199,7 @@
       Object.defineProperty(o, key, { ...desc, ...next });
     };
     const blockedPromise = (msg) =>
-      W.Promise.reject(new W.DOMException(msg || "Blocked by Kinguard", "NotAllowedError"));
+      W.Promise.reject(new W.DOMException(msg || "Blocked by KinGuard", "NotAllowedError"));
 
     // Gesture listeners for this realm.
     for (const type of ["pointerdown", "click", "keydown"]) {
@@ -281,7 +281,7 @@
     for (const proto of [W.HTMLIFrameElement.prototype, W.HTMLFrameElement && W.HTMLFrameElement.prototype]) {
       // Pages (feature detection, frameworks) sometimes read these on non-iframe objects, e.g.
       // HTMLIFrameElement.prototype.contentWindow. The native getter then throws "Illegal
-      // invocation", which Chrome would list under Kinguard's errors because our wrapper is on
+      // invocation", which Chrome would list under KinGuard's errors because our wrapper is on
       // the stack. Return null instead (what a frame without a window returns).
       wrapAccessor(proto, "contentWindow", (d) => ({
         get() {
@@ -312,7 +312,7 @@
     }
     // innerHTML / insertAdjacentHTML are deliberately NOT wrapped: iframes created that way are
     // still hardened when the page touches contentWindow/contentDocument (above), and wrapping
-    // those hot setters made Chrome attribute pages' own console warnings to Kinguard.
+    // those hot setters made Chrome attribute pages' own console warnings to KinGuard.
 
     /* Notification spam ------------------------------------------------- */
     if (W.Notification) {
@@ -337,7 +337,7 @@
         function subscribe() {
           if (realPermission() === "granted") return orig.apply(this, arguments);
           report("notification");
-          return blockedPromise("Push subscription blocked by Kinguard");
+          return blockedPromise("Push subscription blocked by KinGuard");
         }
       );
     }
@@ -366,7 +366,7 @@
       function requestFullscreen() {
         if (isMedia(this) || recentRealClick()) return orig.apply(this, arguments);
         report("fullscreen");
-        return blockedPromise("Fullscreen blocked by Kinguard");
+        return blockedPromise("Fullscreen blocked by KinGuard");
       }
     );
     for (const key of ["webkitRequestFullscreen", "webkitRequestFullScreen", "mozRequestFullScreen"]) {

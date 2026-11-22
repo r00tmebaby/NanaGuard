@@ -38,7 +38,7 @@
       title: "Stop! Don't paste anything",
       lines: [
         "This page secretly tried to copy a dangerous command. It wants you to press Windows + R (or open Terminal) and paste it. That would install a virus.",
-        "Real websites never ask you to do this. Kinguard replaced the command with a harmless message.",
+        "Real websites never ask you to do this. KinGuard replaced the command with a harmless message.",
       ],
       actions: [
         { label: "Close this page", kind: "primary", run: () => message({ cmd: "closeTab" }) },

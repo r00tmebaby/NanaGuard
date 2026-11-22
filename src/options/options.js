@@ -234,7 +234,7 @@
   });
 
   $("reset").addEventListener("click", async () => {
-    if (!confirm("Reset all Kinguard statistics?")) return;
+    if (!confirm("Reset all KinGuard statistics?")) return;
     await api.storage.local.set({ stats: {} });
   });
 
@@ -258,7 +258,7 @@
     if (!file) return;
     try {
       const data = JSON.parse(await file.text());
-      if (data.kinguard !== 1) throw new Error("not a Kinguard backup");
+      if (data.kinguard !== 1) throw new Error("not a KinGuard backup");
       const clean = (list) =>
         [...new Set((Array.isArray(list) ? list : []).map(BLK.normalizeDomain).filter(Boolean))]
           .sort()

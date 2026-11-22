@@ -93,7 +93,7 @@ var BlkWarn = (() => {
           make("h2", { textContent: title }),
           ...lines.map(paragraph),
           make("div", { className: "actions" }, ...buttons),
-          make("div", { className: "brand", textContent: "Warning from Kinguard" })));
+          make("div", { className: "brand", textContent: "Warning from KinGuard" })));
     } else {
       el = make("div", { className: "banner", role: "alert" },
         make("div", { className: "text" }, make("b", { textContent: "⚠ " + title }), ...lines.map((l) => (typeof l === "string" ? l + " " : l.site + " "))),

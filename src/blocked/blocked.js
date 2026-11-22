@@ -10,9 +10,9 @@
 
   if (info.reason === "user") {
     document.body.classList.add("user");
-    document.title = "Blocked by you – Kinguard";
+    document.title = "Blocked by you – KinGuard";
     $("title").textContent = "You blocked this site";
-    $("lead").textContent = "This website is on your Blocked sites list, so Kinguard won't open it.";
+    $("lead").textContent = "This website is on your Blocked sites list, so KinGuard won't open it.";
     $("advText").textContent = "To open it again, remove it from Blocked sites in Settings.";
     $("proceed").hidden = true;
     $("settings").hidden = false;

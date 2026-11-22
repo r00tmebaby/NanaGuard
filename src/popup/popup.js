@@ -67,7 +67,7 @@
       toggle.checked = false;
       toggle.disabled = true;
       document.body.classList.add("off");
-      $("siteStatus").textContent = "Kinguard doesn't run on built-in browser pages.";
+      $("siteStatus").textContent = "KinGuard doesn't run on built-in browser pages.";
     }
     $("pick").disabled = !host || !settings.enabled || allowed;
     $("blockSite").disabled = !host;

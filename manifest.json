@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "__MSG_extName__",
-  "short_name": "Kinguard",
-  "version": "2.4.3",
+  "short_name": "KinGuard",
+  "version": "2.4.4",
   "description": "__MSG_extDescription__",
   "default_locale": "en",
   "minimum_chrome_version": "116",
@@ -42,7 +42,7 @@
     }
   ],
   "action": {
-    "default_title": "Kinguard",
+    "default_title": "KinGuard",
     "default_popup": "src/popup/popup.html",
     "default_icon": {
       "16": "icons/icon-16.png",

@@ -88,6 +88,6 @@ jobs:
         run: |
           gh release create "$TAG" dist/*.zip \
             --target "$(git rev-parse HEAD)" \
-            --title "Kinguard $TAG" \
+            --title "KinGuard $TAG" \
             --generate-notes \
             --notes "Install: download **kinguard-chrome** (Chrome, Edge, Brave, Opera) or **kinguard-firefox** below. See README for setup."

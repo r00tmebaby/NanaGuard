@@ -176,7 +176,7 @@
       btn("cancel").textContent = "Done";
       try {
         const res = await api.runtime.sendMessage({ cmd: "hideElement", selector });
-        msg.textContent = res?.ok ? "Hidden. You can undo this in Kinguard settings." : "Couldn't save – try again.";
+        msg.textContent = res?.ok ? "Hidden. You can undo this in KinGuard settings." : "Couldn't save – try again.";
       } catch {
         msg.textContent = "Couldn't save – try again.";
       }
