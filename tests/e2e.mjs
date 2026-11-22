@@ -70,6 +70,15 @@ PAGES["/tab-under"] = `<!doctype html><title>Videos</title><a id="vid" href="/pl
   <script>document.getElementById("vid").addEventListener("click", (e) => { e.preventDefault();
     window.open("/plain?content", "_blank"); setTimeout(() => { location.href = "http://ads-network.test:" + location.port + "/ad"; }, 200); });</script>`;
 PAGES["/ad"] = "<!doctype html><title>AD</title><h1>Hot singles in your area</h1>";
+// Genuine flows that must keep working:
+// a bank 3-D Secure window opened 2.5 s after "Pay" (after a server round-trip)…
+PAGES["/bank-async"] = `<!doctype html><title>Checkout</title><button id="pay">Pay now</button>
+  <script>document.getElementById("pay").onclick = () => setTimeout(() => {
+    window.open("http://bank-secure.test:" + location.port + "/3ds", "threeds", "width=500,height=600"); }, 2500);</script>`;
+// …and a "Pay with bank" link that is really a button (href="#") opening the bank's window.
+PAGES["/bank-link"] = `<!doctype html><title>Checkout</title><a id="pay" href="#" style="display:block;padding:20px">Pay with your bank</a>
+  <script>document.getElementById("pay").addEventListener("click", (e) => { e.preventDefault();
+    window.open("http://bank-secure.test:" + location.port + "/3ds", "_blank"); });</script>`;
 const server = http.createServer((req, res) => {
   res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
   const page = PAGES[req.url.split("?")[0]];
@@ -426,6 +435,16 @@ try {
   check("tab-under: ad tab closed", !afterTabUnder.some((u) => u.includes("ads-network.test")), afterTabUnder.filter((u) => u.startsWith("http")).join(" | "));
   check("tab-under: the real page is kept", afterTabUnder.some((u) => u.includes("news-site.test") && u.includes("/plain?content")));
   for (const p of await browser.pages()) if (p.url().includes("news-site.test")) await p.close();
+
+  for (const [pagePath, name, wait] of [["/bank-async", "bank window opened 2.5 s after 'Pay'", 4000], ["/bank-link", "'Pay with bank' link (href=\"#\") opens the bank", 1500]]) {
+    g = await visit(`http://shop-checkout.test:${port}${pagePath}`, 800);
+    await g.click("#pay");
+    await sleep(wait);
+    const opened = (await browser.pages()).filter((p) => p.url().includes("bank-secure.test"));
+    check(`genuine popup: ${name}`, opened.length === 1, `${opened.length} bank window(s)`);
+    for (const p of opened) await p.close();
+    await g.close();
+  }
 
   /* --- AI / deepfake videos + fact checks --- */
   const ytTab = await visit(`http://docs.test:${port}/plain`, 500);

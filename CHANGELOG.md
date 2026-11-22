@@ -2,6 +2,10 @@
 
 All notable changes to KinGuard. Filter-list refreshes published by the weekly CI job bump the patch version and are not listed individually.
 
+## 2.6.1
+- **Genuine bank and sign-in popups work again.** A real click may now open one window within 5 seconds (same as Chrome's own popup blocker), so bank 3-D Secure checks and "Sign in with…" windows that open after a server round-trip aren't blocked.
+- "Pay with bank" / "Sign in" links that don't navigate anywhere (`href="#"`, `javascript:`) are treated as buttons, so their window is no longer mistaken for a popunder.
+
 ## 2.6.0
 - **AI-content detection beyond platform labels.** KinGuard now reads the signals uploaders leave: AI generator names (Sora, Veo, Seedance, Kling, Runway, Midjourney, HeyGen, ElevenLabs, Suno … 35+ tools, with care for everyday words like "runway" or "Sora the cat"), phrases such as "AI-generated" or "made with AI", AI hashtags, and platform labels (YouTube, TikTok, Meta).
 - **YouTube chip only when there is a signal:** "AI-generated (labelled)", "Likely AI-generated", "Possibly AI" or "Possible deepfake scam", with the reasons in its tooltip. The meaningless "none declared" chip is gone.

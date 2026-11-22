@@ -62,7 +62,25 @@
     "a[href],button,input,select,textarea,label,summary,option," +
     "[role=button],[role=link],[role=menuitem],[role=tab],[role=option],[contenteditable=true]";
   const GESTURE_MS = 1000;
+  // A real click may open ONE window within 5 s, like Chrome's own popup blocker: bank 3-D Secure
+  // checks and "Sign in with…" windows often open 1-3 s after the click (after a server round-trip).
+  const OPEN_MS = 5000;
   const gesture = { at: -Infinity, kind: "", interactive: false, used: false, link: null };
+
+  /** href of a link that really navigates elsewhere; null for "#", javascript: and same-page links
+   *  (those are buttons in disguise, e.g. "Pay with bank" / "Sign in" that open a window). */
+  function navLink(a) {
+    if (!a || opensNewWindow(a) || typeof a.href !== "string") return null;
+    try {
+      const u = new URL(a.href, location.href);
+      if (u.protocol !== "http:" && u.protocol !== "https:") return null;
+      const strip = (x) => x.href.split("#")[0];
+      if (strip(u) === strip(new URL(location.href))) return null;
+      return u.href;
+    } catch {
+      return null;
+    }
+  }
 
   function isInteractive(target, win) {
     if (!target || typeof target.closest !== "function") return false;
@@ -86,7 +104,7 @@
       gesture.interactive = gesture.interactive || isInteractive(target, win);
       if (!gesture.link) {
         const a = target && typeof target.closest === "function" ? target.closest("a[href]") : null;
-        gesture.link = a && !opensNewWindow(a) && typeof a.href === "string" ? a.href : null;
+        gesture.link = navLink(a);
       }
       return;
     }
@@ -95,12 +113,12 @@
     gesture.used = false;
     gesture.interactive = e.type === "keydown" || isInteractive(target, win);
     const a = target && typeof target.closest === "function" ? target.closest("a[href]") : null;
-    gesture.link = a && !opensNewWindow(a) && typeof a.href === "string" ? a.href : null;
+    gesture.link = navLink(a);
   }
 
   /** One new window per genuine click on a real control. */
   function allowNewWindow() {
-    if (now() - gesture.at > GESTURE_MS || !gesture.interactive || gesture.used) return false;
+    if (now() - gesture.at > OPEN_MS || !gesture.interactive || gesture.used) return false;
     gesture.used = true;
     return true;
   }
