@@ -2,6 +2,9 @@
 
 All notable changes to Kinguard. Filter-list refreshes published by the weekly CI job bump the patch version and are not listed individually.
 
+## 2.4.3
+- **Fixed a ~6 second browser freeze when Kinguard was installed, updated or reloaded.** Chrome was saving ~59,000 site-fix address patterns to its preferences file. Site fixes are now registered in memory (redone in ~0.1 s at each browser start) and use half as many patterns. Core protection registers first, then site fixes load lazily in small batches. Setup went from 6.6 s to 0.6 s; the worst freeze of an open tab from 6 s to 12 ms.
+
 ## 2.4.2
 - No longer hooks `innerHTML`/`insertAdjacentHTML`. Websites' own console warnings (e.g. Google's "speculation rule set … will be ignored") were being shown as coming from Kinguard. Protection is unchanged: hidden-iframe popup tricks are still caught via `contentWindow`.
 - Reading `contentWindow` / `contentDocument` / `Notification.permission` on the wrong kind of object (common in sites' feature detection) no longer throws "Illegal invocation" inside Kinguard's code, which Chrome listed as a Kinguard error.

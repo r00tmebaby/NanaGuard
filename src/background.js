@@ -64,13 +64,21 @@ const applySettings = () => queue(async () => {
 });
 const applyDynamic = () => queue(updateDynamicRules);
 
-const excludesFor = (domains) => domains.flatMap((d) => [`*://${d}/*`, `*://*.${d}/*`]);
+// "*://*.example.com/*" already matches example.com itself, so one pattern per domain
+// (two only for IP addresses). Halves the pattern count Chrome has to process.
+const excludesFor = (domains) =>
+  domains.flatMap((d) => (/^\d{1,3}(\.\d{1,3}){3}$/.test(d) ? [`*://${d}/*`] : [`*://*.${d}/*`]));
 
 async function register(scripts) {
   for (const s of scripts) if (s.excludeMatches && !s.excludeMatches.length) delete s.excludeMatches;
   try {
     await api.scripting.registerContentScripts(scripts);
   } catch (err) {
+    // Browsers without persistAcrossSessions support: drop the flag and retry as a batch.
+    if (/persistAcrossSessions/i.test(String(err && err.message))) {
+      for (const s of scripts) delete s.persistAcrossSessions;
+      return register(scripts);
+    }
     // Register one by one so a single bad script/pattern can't disable the rest.
     for (const s of scripts) {
       try {
@@ -123,17 +131,27 @@ async function registerScripts() {
     });
   }
 
+  // Core protection first: active immediately.
+  await register(scripts);
+
+  // Then site fixes lazily, in small batches with a pause between them, so the browser never
+  // processes one big block (it once froze for ~6 s). Not persisted: saving ~30k patterns to
+  // Chrome's preferences was the freeze; in-memory registration is redone at each browser start.
+  const shardScripts = [];
   for (const cat of COSMETIC_CATS) {
     if (!lists[cat]) continue;
     const shards = (await loadJson(`rules/${cat}-scriptlets.json`)) || [];
     shards.forEach((shard, i) => {
-      scripts.push({
+      shardScripts.push({
         id: `${ID.scriptlet}${cat}-${i}`, js: [shard.file], matches: excludesFor(shard.hosts), excludeMatches: exclude,
-        runAt: "document_start", allFrames: true, world: "MAIN",
+        runAt: "document_start", allFrames: true, world: "MAIN", persistAcrossSessions: false,
       });
     });
   }
-  await register(scripts);
+  for (let i = 0; i < shardScripts.length; i += 8) {
+    await register(shardScripts.slice(i, i + 8));
+    await new Promise((r) => setTimeout(r, 30));
+  }
 }
 
 async function updateRulesets() {
