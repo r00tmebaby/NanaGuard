@@ -40,7 +40,7 @@ Made for people who just want the internet to be safe and calm, like your parent
 - Stops fake **"Your PC is infected"** screens, alert loops and notification spam
 
 **Spots AI fakes and checks facts**
-- Shows YouTube's hidden **"altered or synthetic content"** label clearly, so you know when a video is AI-made
+- Shows an **AI status chip under every YouTube video**: *AI label: none declared*, *AI-generated (creator says)* (YouTube's hidden "altered or synthetic content" disclosure, plus a banner) or *Possible deepfake scam*
 - Warns about **deepfake scam videos**: fake celebrities promoting crypto giveaways, "investment platforms" or miracle cures
 - **Check facts** in one click: right-click any text, use the buttons under YouTube videos, or open the toolbar popup. Choose **Other news sources** (is anyone else reporting it?), **Fact-checkers** (claims already reviewed by professionals), **ChatGPT** or **Google**, each opening in a new tab. Brand-new stories usually have no fact-check yet, so for news, "other sources" is the best first check.
 

@@ -2,6 +2,11 @@
 
 All notable changes to KinGuard. Filter-list refreshes published by the weekly CI job bump the patch version and are not listed individually.
 
+## 2.5.1
+- **AI status chip under every YouTube video:** grey "AI label: none declared", amber "AI-generated (creator says)" or red "Possible deepfake scam", so you can always see the check ran.
+- AI disclosure is now also read from YouTube's page data when you click from video to video, and from the on-player label used for photorealistic AI.
+- Fixed a regression where the "How this content was made" section in the description was skipped.
+
 ## 2.5.0
 - **Popunders on link clicks blocked:** clicking a normal link no longer lets the page open an ad site in a new tab as well. The link itself works as usual.
 - **Tab-unders fixed:** when a site opens the page you wanted in a new tab and turns your current tab into an ad, KinGuard closes the ad tab and switches you to the real page.

@@ -71,15 +71,46 @@
   );
   natives.set(Function.prototype.toString, fnToString);
 
+  /* AI disclosure: when YouTube loads a video's page data (first load or clicking to the next
+   * video), look for its "Altered or synthetic content" label and tell the isolated script. */
+  const AI_LABEL = /Altered or synthetic content|Sound or visuals were significantly edited or digitally generated/i;
+  function inspectWatchData(o) {
+    try {
+      if (!o || typeof o !== "object") return;
+      const r = o.response && o.response.contents ? o.response : o;
+      if (!r.contents || !(r.contents.twoColumnWatchNextResults || r.contents.singleColumnWatchNextResults)) return;
+      const id = (r.currentVideoEndpoint && r.currentVideoEndpoint.watchEndpoint && r.currentVideoEndpoint.watchEndpoint.videoId) || "";
+      if (AI_LABEL.test(JSON.stringify(r.contents))) {
+        nativeDispatch.call(document, new CustomEvent("kinguard:ailabel", { detail: String(id) }));
+      }
+    } catch {
+      /* never break YouTube */
+    }
+  }
+  let initialData;
+  try {
+    Object.defineProperty(window, "ytInitialData", {
+      configurable: true,
+      get: () => initialData,
+      set: (v) => { initialData = v; setTimeout(() => inspectWatchData(v), 0); },
+    });
+  } catch {
+    /* already defined */
+  }
+
   wrap(JSON, "parse", (orig) =>
     function parse() {
       const result = orig.apply(this, arguments);
+      if (result && typeof result === "object" && result.contents) setTimeout(() => inspectWatchData(result), 0);
       return looksLikePlayer(result) ? strip(result) : result;
     }
   );
   wrap(Response.prototype, "json", (orig) =>
     function json() {
-      return orig.apply(this, arguments).then((r) => (looksLikePlayer(r) ? strip(r) : r));
+      return orig.apply(this, arguments).then((r) => {
+        if (r && typeof r === "object" && (r.contents || (r.response && r.response.contents))) setTimeout(() => inspectWatchData(r), 0);
+        return looksLikePlayer(r) ? strip(r) : r;
+      });
     }
   );
 

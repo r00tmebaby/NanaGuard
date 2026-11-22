@@ -505,6 +505,31 @@ try {
     }
     check("youtube: Google / ChatGPT / News / Fact-check buttons each open their tab",
       results.length === 4 && results.every((u, i) => u.includes(expected[i])), results.map((u) => u.slice(0, 45)).join(" | "));
+
+    // Status chip (inside the closed shadow root) — read via CDP.
+    const chipText = async () => {
+      const { root: r } = await cdp.send("DOM.getDocument", { depth: -1, pierce: true });
+      let text = null;
+      (function walk(n, inHost) {
+        const h = inHost || n.nodeName === "KINGUARD-CHECK";
+        if (h && n.nodeName === "SPAN" && (n.attributes || []).some((a) => /^s /.test(a))) {
+          text = (n.children || []).map((c) => c.nodeValue || "").join("");
+        }
+        for (const c of [...(n.children || []), ...(n.shadowRoots || [])]) walk(c, h);
+      })(r, false);
+      return text;
+    };
+    check("youtube: AI status chip visible on a normal video", (await chipText()) === "AI label: none declared", String(await chipText()));
+
+    // Simulate YouTube loading watch data that carries the AI disclosure (as on a labelled video):
+    // the page's own JSON.parse goes through KinGuard's hook → chip turns amber + banner.
+    await ytp.evaluate(() => JSON.parse(JSON.stringify({
+      currentVideoEndpoint: { watchEndpoint: { videoId: new URL(location.href).searchParams.get("v") } },
+      contents: { twoColumnWatchNextResults: { results: { howThisWasMade: { title: "How this content was made",
+        body: "Altered or synthetic content: Sound or visuals were significantly edited or digitally generated." } } } },
+    })));
+    await sleep(2500);
+    check("youtube: AI disclosure detected from YouTube's data → chip + banner", (await chipText()) === "AI-generated (creator says)" && (await hasWarning(ytp)), String(await chipText()));
   }
   await ytp.close();
 

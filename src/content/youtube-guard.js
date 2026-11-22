@@ -65,11 +65,15 @@ var BlkYouTube = (() => {
     const description = meta && meta.querySelector("#description") ? meta.querySelector("#description").textContent : "";
     const channel = meta && meta.querySelector("ytd-channel-name") ? meta.querySelector("ytd-channel-name").textContent.trim() : "";
     const live = !!document.querySelector(".ytp-live-badge:not([disabled]), .ytp-live") || /\bLIVE\b/.test(title);
-    // Label text: metadata area (incl. "How this content was made") + first-load page data. Not comments.
-    let labelText = "";
-    if (meta) { const d = meta.querySelector("#description"); labelText = meta.textContent.replace(d ? d.textContent : "", ""); }
+    // Label text: the whole metadata area INCLUDING the description (YouTube's "How this content
+    // was made" section lives inside it), the player (photorealistic AI gets an on-player label)
+    // and the active Short. Not comments. The label regex is YouTube's exact wording, so a normal
+    // description can't trigger it by accident.
+    let labelText = meta ? meta.textContent : "";
+    const player = document.querySelector("#movie_player");
+    if (player) labelText += "\n" + player.textContent;
     const reel = document.querySelector("ytd-reel-video-renderer[is-active]");
-    if (reel) labelText += reel.textContent;
+    if (reel) labelText += "\n" + reel.textContent;
     return { title, description, channel, live, labelText };
   }
   function initialDataHasLabel(id) {
@@ -80,8 +84,22 @@ var BlkYouTube = (() => {
     return false;
   }
 
-  /* ---------------- fact-check button ---------------- */
-  function addCheckButton() {
+  /* ---------------- status chip + fact-check buttons under the title ---------------- */
+  const STATUS = {
+    none: { cls: "none", text: "AI label: none declared", tip: "The creator has not declared this video as AI-generated or altered. KinGuard also found no deepfake-scam signs." },
+    ai: { cls: "ai", text: "AI-generated (creator says)", tip: "YouTube's 'Altered or synthetic content' label is on this video: what you see or hear may not be real." },
+    scam: { cls: "scam", text: "Possible deepfake scam", tip: "A famous person's name is used to promote crypto, investments or cures: a common AI deepfake scam." },
+  };
+  let statusEl = null;
+  function setStatus(kind) {
+    if (!statusEl) return;
+    const s = STATUS[kind] || STATUS.none;
+    statusEl.className = "s " + s.cls;
+    statusEl.textContent = s.text;
+    statusEl.title = s.tip;
+  }
+
+  function addCheckButton(showStatus = false, showButtons = true) {
     const host = document.querySelector("ytd-watch-metadata #title");
     if (!host || host.querySelector("kinguard-check")) return;
     const el = document.createElement("kinguard-check");
@@ -93,14 +111,23 @@ var BlkYouTube = (() => {
       button{display:inline-flex;align-items:center;gap:6px;font:500 13px/1 system-ui,Roboto,sans-serif;border:1px solid #c7d2fe;
       background:#eef2ff;color:#3730a3;border-radius:999px;padding:6px 12px;cursor:pointer;white-space:nowrap}
       button:hover{background:#e0e7ff}
-      @media (prefers-color-scheme: dark){button{background:#1e1b4b;color:#c7d2fe;border-color:#3730a3}.t{color:#9ca3af}}`;
+      .s{font:600 12px/1 system-ui,Roboto,sans-serif;border-radius:999px;padding:7px 10px;white-space:nowrap;margin-right:6px;cursor:help}
+      .none{background:#f3f4f6;color:#4b5563}.ai{background:#fef3c7;color:#92400e}.scam{background:#fee2e2;color:#991b1b}
+      @media (prefers-color-scheme: dark){button{background:#1e1b4b;color:#c7d2fe;border-color:#3730a3}.t{color:#9ca3af}
+        .none{background:#272727;color:#aaa}.ai{background:#3a2a07;color:#fcd34d}.scam{background:#450a0a;color:#fca5a5}}`;
     const row = document.createElement("div");
     row.className = "row";
+    root.append(style, row);
+    if (showStatus) {
+      statusEl = document.createElement("span");
+      row.append(statusEl);
+      setStatus("none");
+    }
+    if (!showButtons) { host.append(el); return; }
     const lead = document.createElement("span");
     lead.className = "t";
     lead.textContent = "Check facts:";
     row.append(lead);
-    root.append(style, row);
     for (const engine of Object.keys(BLK.FACT_ENGINES)) {
       const b = document.createElement("button");
       b.append(BLK.icon(engine, 15), BLK.FACT_SHORT[engine]);
@@ -125,20 +152,30 @@ var BlkYouTube = (() => {
     const memo = new Map();
     const initCache = new Map();
     const pause = () => { const v = document.querySelector("#movie_player video"); if (v && !v.paused) v.pause(); };
+    // Labels found in YouTube's own page data (first load and next-video navigation), from youtube.js.
+    const labelled = new Set();
+    document.addEventListener("kinguard:ailabel", (e) => { labelled.add(String(e.detail || videoId())); setTimeout(check, 0); });
+    let shownFor = "";
 
     const check = () => {
-      if (guards.factcheck) addCheckButton();
+      if (guards.factcheck || guards.ai) addCheckButton(guards.ai, guards.factcheck);
       if (!guards.ai) return;
       const id = videoId();
       if (!id) return;
       const ctx = context();
       if (!ctx.title) return;
-      const key = id + "|" + ctx.title + "|" + ctx.channel + "|" + ctx.description.length + "|" + ctx.labelText.length + "|" + ctx.live;
-      if (memo.get(id) === key) return;
+      const key = id + "|" + ctx.title + "|" + ctx.channel + "|" + ctx.description.length + "|" + ctx.labelText.length + "|" + ctx.live + "|" + labelled.has(id);
+      if (memo.get(id) === key && shownFor === id) return;
       memo.set(id, key);
+      shownFor = id;
+
+      const verdict = assess(ctx);
+      const isAi = labelled.has(id) || hasAiLabel(ctx.labelText) ||
+        (initCache.has(id) ? initCache.get(id) : (initCache.set(id, initialDataHasLabel(id)), initCache.get(id)));
+      setStatus(verdict.flagged ? "scam" : isAi ? "ai" : "none");
 
       if (!done.has("scam:" + id)) {
-        const a = assess(ctx);
+        const a = verdict;
         if (a.flagged) {
           done.add("scam:" + id);
           send("deepfake");
@@ -159,7 +196,7 @@ var BlkYouTube = (() => {
           });
         }
       }
-      if (!done.has("ai:" + id) && (hasAiLabel(ctx.labelText) || (initCache.has(id) ? initCache.get(id) : (initCache.set(id, initialDataHasLabel(id)), initCache.get(id))))) {
+      if (!done.has("ai:" + id) && isAi) {
         done.add("ai:" + id);
         send("ailabel");
         warn({
