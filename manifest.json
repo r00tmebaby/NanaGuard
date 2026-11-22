@@ -1,0 +1,39 @@
+{
+  "manifest_version": 3,
+  "name": "Grandma Shield - Popup Blocker",
+  "version": "0.1.0",
+  "description": "Blocks popups, popunders, fake notification prompts and scam alert loops.",
+  "permissions": ["declarativeNetRequest", "storage", "tabs"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "src/background.js",
+    "scripts": ["src/background.js"]
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["src/inject.js"],
+      "run_at": "document_start",
+      "all_frames": true,
+      "world": "MAIN"
+    },
+    {
+      "matches": ["<all_urls>"],
+      "js": ["src/overlay.js"],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "declarative_net_request": {
+    "rule_resources": [
+      { "id": "blocklist", "enabled": true, "path": "rules/blocklist.json" }
+    ]
+  },
+  "action": {
+    "default_title": "Grandma Shield",
+    "default_popup": "src/popup.html"
+  },
+  "browser_specific_settings": {
+    "gecko": { "id": "grandma-shield@r00tmebaby", "strict_min_version": "128.0" }
+  }
+}
