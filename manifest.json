@@ -1,39 +1,54 @@
 {
   "manifest_version": 3,
-  "name": "Grandma Shield - Popup Blocker",
-  "version": "0.1.0",
-  "description": "Blocks popups, popunders, fake notification prompts and scam alert loops.",
-  "permissions": ["declarativeNetRequest", "storage", "tabs"],
+  "name": "__MSG_extName__",
+  "short_name": "Hush",
+  "version": "1.1.0",
+  "description": "__MSG_extDescription__",
+  "default_locale": "en",
+  "minimum_chrome_version": "116",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "permissions": ["declarativeNetRequest", "scripting", "storage", "tabs"],
   "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "src/background.js",
-    "scripts": ["src/background.js"]
+    "scripts": ["src/common.js", "src/background.js"]
   },
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["src/inject.js"],
+      "js": ["src/common.js", "src/content/isolated.js"],
       "run_at": "document_start",
-      "all_frames": true,
-      "world": "MAIN"
-    },
-    {
-      "matches": ["<all_urls>"],
-      "js": ["src/overlay.js"],
-      "run_at": "document_idle",
-      "all_frames": false
+      "all_frames": true
     }
   ],
   "declarative_net_request": {
     "rule_resources": [
-      { "id": "blocklist", "enabled": true, "path": "rules/blocklist.json" }
+      { "id": "blocklist", "enabled": true, "path": "rules/blocklist.json" },
+      { "id": "easylist", "enabled": true, "path": "rules/easylist.json" }
     ]
   },
   "action": {
-    "default_title": "Grandma Shield",
-    "default_popup": "src/popup.html"
+    "default_title": "Hush",
+    "default_popup": "src/popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png"
+    }
+  },
+  "options_ui": {
+    "page": "src/options/options.html",
+    "open_in_tab": true
   },
   "browser_specific_settings": {
-    "gecko": { "id": "grandma-shield@r00tmebaby", "strict_min_version": "128.0" }
+    "gecko": {
+      "id": "hush@r00tmebaby",
+      "strict_min_version": "128.0",
+      "data_collection_permissions": { "required": ["none"] }
+    }
   }
 }

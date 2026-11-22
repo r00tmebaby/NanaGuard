@@ -1,44 +1,81 @@
-# Grandma Shield 🛡️
+# Hush – Ad, Popup & Scam Blocker
 
-A small Manifest V3 browser extension that stops the stuff that tricks non-technical users:
+A lightweight, privacy-first browser extension that blocks ads and banners and stops the tricks used to scare and scam people online: popups, popunders, notification spam, fake virus warnings and browser lock screens.
 
-| Threat | What the extension does |
+Works on **Chrome, Edge, Brave, Opera** (Chromium 116+) and **Firefox 128+** from a single Manifest V3 codebase.
+
+## Features
+
+### Automatic (nothing to configure)
+
+| Threat | How Hush stops it |
 |---|---|
-| Popups / popunders | `window.open` only works right after a real click, one window per click |
-| "Click Allow to continue" notification spam | Notification permission always reports `denied` |
-| Fake "YOUR PC IS INFECTED" alert loops | After 2 dialogs, further `alert/confirm/prompt` are swallowed |
-| "Are you sure you want to leave?" traps | `beforeunload` handlers are ignored |
-| Fullscreen fake-antivirus screens | `requestFullscreen` is blocked |
-| Full-page scam overlays | Fixed overlays containing scam wording are removed |
-| Known popunder ad networks | Blocked at network level (`rules/blocklist.json`) |
+| Ads & banners | **EasyList**, converted to native browser rules: ~3.8k compacted network rules (51k filters), 13k generic + 10k site-specific banner-hiding rules. Refreshed weekly by CI. |
+| Popups & popunders | New windows need a real click on a real button or link, one window per click. Synthetic clicks, invisible full-page links and the `about:blank` iframe bypass are covered. Tabs that land on any of 2.7k EasyList popup-ad hosts are closed. |
+| "Click *Allow* to continue" | Notification prompts and push subscriptions are refused (sites already allowed keep working). |
+| Alert / confirm / print loops | Back-to-back dialogs are silenced after the second one. |
+| Fake "Windows Defender" fullscreen | Fullscreen is allowed only for video/games; keyboard lock and pointer lock hijacks are blocked. |
+| Back-button traps | History flooding is capped. |
+| "Are you sure you want to leave?" | Ignored unless you actually typed something on the page. |
+| Fake "your PC is infected" overlays | Full-screen overlays with several scam signals (fake support numbers, "do not restart", etc.) are removed. |
 
-## Browsers
+### You decide
 
-Works on **Chrome, Edge, Brave, Opera** (Chromium 121+) and **Firefox 128+** from the same folder.
+- **Hide an ad on this page:** click the toolbar icon, click the banner, and confirm. It stays hidden on that site for good.
+- **Block site:** never load a website again (pages *and* anything embedded from it).
+- **Protection on this site:** a per-site switch for sites that break, such as a bank's payment window.
+- **Settings:** tabs for Protection, Ads (EasyList info and your hidden elements), Sites (blocked and allowed lists) and Statistics (with backup export/import).
 
-### Install for testing
-- **Chrome / Edge / Brave:** open `chrome://extensions` (or `edge://extensions`), enable *Developer mode*, click *Load unpacked*, pick this folder.
-- **Firefox:** open `about:debugging#/runtime/this-firefox` → *Load Temporary Add-on* → pick `manifest.json`.
-  For a permanent install, sign it for free at addons.mozilla.org ("unlisted" distribution).
+## Try it
 
-## Project layout
+1. **Chrome / Edge / Brave:** go to `chrome://extensions`, enable **Developer mode**, click **Load unpacked**, then select this folder.
+   **Firefox:** go to `about:debugging#/runtime/this-firefox`, click **Load Temporary Add-on**, then select `manifest.json`.
+2. Open [`tests/playground.html`](tests/playground.html). It has ten harmless buttons that simulate every attack and show ✔/✘.
+   (For `file://` in Chrome, turn on *Allow access to file URLs* in the extension's details, or run `npx serve tests`.)
+
+## Development
+
+```bash
+npm run filters    # download EasyList → rules/*.json, rules/*.css
+npm run check      # syntax, manifest references, DNR rule validation
+npm install && npm run test:e2e   # 24 end-to-end checks in real Chrome (CHROME_PATH on mac/linux)
+npm run build      # dist/hush-chrome-<v>.zip, dist/hush-firefox-<v>.zip
 ```
-manifest.json         extension config (cross-browser)
-src/inject.js         page-context overrides (popups, notifications, dialogs)
-src/overlay.js        removes scam overlays, relays events
-src/background.js     badge counter, closes popunder tabs
-src/popup.html/.js    toolbar popup with stats
-rules/blocklist.json  network block rules
+
+### CI / releases (`.github/workflows/release.yml`)
+- Every push runs the checks, builds both packages and lints the Firefox one with `web-ext`.
+- Pushing a `v*` tag publishes a GitHub Release with both zips.
+- **Every Monday** CI downloads the latest EasyList. If it changed, CI bumps the patch version, commits, tags and publishes a release automatically.
+
+### Publishing
+- **Chrome Web Store:** upload the chrome zip (one-time $5 fee). **Edge Add-ons** takes the same zip for free.
+- **Firefox Add-ons (AMO):** upload the firefox zip, *listed* or *unlisted*.
+- Use [`PRIVACY.md`](PRIVACY.md) as the privacy policy.
+
+## Architecture
+
+```
+manifest.json                 cross-browser manifest (build strips per-browser keys)
+src/common.js                 shared: settings, allow/block lists, domain parsing
+src/background.js             registers page script + banner CSS, DNR rules, per-site hiding,
+                              counters, popunder-tab closer
+src/content/main-world.js     page-context API hardening (popups, notifications, dialogs…)
+src/content/isolated.js       relays events, requests per-site hiding, removes scam overlays
+src/content/picker.js         "Hide an ad on this page" element picker
+src/popup/, src/options/      UI
+rules/blocklist.json          hand-picked popunder networks
+rules/easylist.json …         generated by scripts/update-filters.mjs (do not edit)
+scripts/                      update-filters, check, build, make-icons
+tests/                        e2e test + manual playground
 ```
 
-## Honest limits
-This blocks browser nuisances; it is **not antivirus**. For grandma's laptop also:
-1. Install **uBlock Origin** (Firefox) or **uBlock Origin Lite** (Chrome/Edge) alongside this.
-2. Keep **Windows Security / Defender** on and Windows Update current.
-3. In browser settings → Site settings → Notifications, set **"Don't allow sites to send notifications"** and remove any sites already allowed — this is the #1 source of "virus" popups.
-4. Make her Windows account a **standard (non-admin) user**.
+Allowlisted sites never receive the page script or banner CSS (dynamic `registerContentScripts` with `excludeMatches`), and they get an `allowAllRequests` network rule. User-blocked sites get a priority-200 block rule.
 
-## Ideas / TODO
-- Options page with a per-site allowlist (online banking etc.)
-- Import EasyList / uBlock popup filters into DNR rules
-- "Big red button" to close the current tab and reset the browser
+## Limits
+
+Hush is a browser protection layer, **not antivirus**. For a well-protected setup, also:
+
+1. Keep **Windows Security / Defender** and Windows Update on.
+2. In browser settings → *Site settings → Notifications*, remove sites that were already allowed. They were granted permission before Hush was installed, so they can still push messages.
+3. Use a **standard (non-admin)** Windows account for daily use.
+4. MV3 network rules can't do everything uBlock Origin's filters can (no scriptlets or `$redirect`). For power users, uBlock Origin on Firefox goes further.

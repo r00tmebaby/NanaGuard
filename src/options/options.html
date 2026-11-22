@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hush settings</title>
+  <link rel="stylesheet" href="../ui/ui.css">
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <main>
+    <header class="brand">
+      <img src="../../icons/icon-48.png" width="40" height="40" alt="">
+      <div>
+        <h1>Hush</h1>
+        <p class="muted">Ad, popup &amp; scam blocker</p>
+      </div>
+    </header>
+
+    <div id="perm" class="banner" hidden>
+      <span><b>One more step:</b> allow Hush to run on websites, otherwise it can't block anything.</span>
+      <button id="grant" class="btn primary">Allow access</button>
+    </div>
+
+    <nav class="tabs" role="tablist">
+      <button role="tab" data-tab="protection" aria-selected="true">Protection</button>
+      <button role="tab" data-tab="ads">Ads</button>
+      <button role="tab" data-tab="sites">Sites</button>
+      <button role="tab" data-tab="stats">Statistics</button>
+    </nav>
+
+    <!-- Protection -->
+    <section class="panel" data-panel="protection">
+      <div class="card">
+        <div class="row">
+          <div>
+            <h2>Protection</h2>
+            <p class="muted">Turn Hush on or off everywhere.</p>
+          </div>
+          <label class="switch"><input type="checkbox" id="global" aria-label="Protection"><span></span></label>
+        </div>
+        <ul class="features muted">
+          <li>Popups and popunders that open without a real click</li>
+          <li>"Click Allow" notification and push-message prompts</li>
+          <li>Endless alert/confirm/print loops and back-button traps</li>
+          <li>Fullscreen and keyboard-lock hijacks used by fake support scams</li>
+          <li>Full-page fake "your computer is infected" screens</li>
+          <li>Known popunder ad networks, blocked at network level</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Ads -->
+    <section class="panel" data-panel="ads" hidden>
+      <div class="card">
+        <div class="row">
+          <div>
+            <h2>Block ads &amp; banners</h2>
+            <p class="muted">Uses the community-maintained EasyList. It updates automatically with every Hush release.</p>
+          </div>
+          <label class="switch"><input type="checkbox" id="ads" aria-label="Block ads and banners"><span></span></label>
+        </div>
+        <dl class="meta" id="meta"></dl>
+      </div>
+
+      <div class="card">
+        <h2>Hidden elements</h2>
+        <p class="muted">Things you hid with <b>Hide an ad on this page</b>. Remove one to bring it back.</p>
+        <div id="hidden" class="groups"></div>
+        <p id="hiddenEmpty" class="muted">Nothing hidden yet. Open a page, click the Hush icon, then <b>Hide an ad on this page</b>.</p>
+      </div>
+    </section>
+
+    <!-- Sites -->
+    <section class="panel" data-panel="sites" hidden>
+      <div class="card">
+        <h2>Blocked sites</h2>
+        <p class="muted">These websites, and every page or ad loaded from them, are blocked completely.</p>
+        <form id="blockForm" class="add">
+          <input id="blockDomain" type="text" placeholder="annoying-site.com" autocomplete="off" spellcheck="false" aria-label="Site to block">
+          <button class="btn primary" type="submit">Block</button>
+        </form>
+        <p id="blockError" class="error" role="alert"></p>
+        <ul id="blocklist" class="chips"></ul>
+        <p id="blockEmpty" class="muted">No sites blocked.</p>
+      </div>
+
+      <div class="card">
+        <h2>Allowed sites</h2>
+        <p class="muted">Hush stays off on these sites. Add a site only if it stops working properly, for example a bank's payment window.</p>
+        <form id="allowForm" class="add">
+          <input id="allowDomain" type="text" placeholder="mybank.com" autocomplete="off" spellcheck="false" aria-label="Site to allow">
+          <button class="btn primary" type="submit">Allow</button>
+        </form>
+        <p id="allowError" class="error" role="alert"></p>
+        <ul id="allowlist" class="chips"></ul>
+        <p id="allowEmpty" class="muted">No sites allowed.</p>
+      </div>
+    </section>
+
+    <!-- Stats -->
+    <section class="panel" data-panel="stats" hidden>
+      <div class="card">
+        <div class="row">
+          <div>
+            <h2>Statistics</h2>
+            <p class="muted">Counts are stored only on this computer.</p>
+          </div>
+          <button id="reset" class="btn danger">Reset</button>
+        </div>
+        <ul id="stats" class="statlist"></ul>
+      </div>
+      <div class="card">
+        <div class="row">
+          <div>
+            <h2>Backup</h2>
+            <p class="muted">Save your blocked, allowed and hidden lists, or load them on another computer.</p>
+          </div>
+          <div class="btns">
+            <button id="export" class="btn">Export</button>
+            <label class="btn">Import<input id="import" type="file" accept="application/json" hidden></label>
+          </div>
+        </div>
+        <p id="backupMsg" class="muted"></p>
+      </div>
+    </section>
+
+    <footer class="muted">
+      <span id="version"></span> · No data leaves your browser.
+    </footer>
+  </main>
+  <script src="../common.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>

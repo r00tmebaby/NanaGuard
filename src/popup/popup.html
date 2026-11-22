@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Hush</title>
+  <link rel="stylesheet" href="../ui/ui.css">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header class="row">
+    <div class="brand">
+      <img src="../../icons/icon-32.png" width="24" height="24" alt="">
+      <h1>Hush</h1>
+    </div>
+    <label class="switch" title="Protection on/off everywhere">
+      <input type="checkbox" id="global" aria-label="Protection everywhere">
+      <span></span>
+    </label>
+  </header>
+
+  <div id="perm" class="banner" hidden>
+    <span>Hush needs access to websites to protect them.</span>
+    <button id="grant" class="btn primary">Allow</button>
+  </div>
+
+  <section class="card">
+    <div class="row">
+      <div class="site">
+        <div class="muted small">This site</div>
+        <div id="host" class="host">—</div>
+      </div>
+      <label class="switch" title="Protection on this site">
+        <input type="checkbox" id="siteToggle" aria-label="Protection on this site">
+        <span></span>
+      </label>
+    </div>
+    <p id="siteStatus" class="status"></p>
+    <div class="actions">
+      <button id="pick" class="btn primary">Hide an ad on this page</button>
+      <button id="blockSite" class="btn danger" title="Never open this website again">Block site</button>
+    </div>
+  </section>
+
+  <section class="counts">
+    <div class="card count"><strong id="tabCount">0</strong><span class="muted">blocked on this page</span></div>
+    <div class="card count"><strong id="totalCount">0</strong><span class="muted">blocked in total</span></div>
+  </section>
+
+  <label class="card row toggle-row">
+    <span>
+      <span class="strong">Block ads &amp; banners</span>
+      <span id="adsInfo" class="muted small block"></span>
+    </span>
+    <span class="switch"><input type="checkbox" id="ads" aria-label="Block ads and banners"><span></span></span>
+  </label>
+
+  <details>
+    <summary class="muted small">Details</summary>
+    <ul id="breakdown" class="breakdown"></ul>
+  </details>
+
+  <footer class="row">
+    <a href="#" id="openOptions">Settings</a>
+    <span id="version" class="muted small"></span>
+  </footer>
+
+  <script src="../common.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+{
+  "list": "EasyList",
+  "source": "https://easylist.to/easylist/easylist.txt",
+  "version": "202611221556",
+  "generated": "2026-11-22T16:05:13.616Z",
+  "networkRules": 3821,
+  "genericSelectors": 13333,
+  "siteSelectors": 10275,
+  "popupHosts": 2741,
+  "skipped": 851
+}

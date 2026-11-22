@@ -1,0 +1,28 @@
+body { width: 330px; padding: 14px; display: grid; gap: 12px; }
+.brand { display: flex; align-items: center; gap: 8px; }
+.brand h1 { font-size: 17px; }
+.small { font-size: 12px; }
+.block { display: block; }
+.strong { font-weight: 600; }
+.site { min-width: 0; }
+.host { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.status { margin: 8px 0 0; font-size: 13px; color: var(--ok); }
+body.off .status { color: var(--muted); }
+body.paused header h1::after { content: " · paused"; font-weight: 400; color: var(--muted); font-size: 13px; }
+
+.actions { display: flex; gap: 8px; margin-top: 10px; }
+.actions .primary { flex: 1; }
+
+.counts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.count { display: grid; gap: 2px; padding: 10px 12px; }
+.count strong { font-size: 22px; font-variant-numeric: tabular-nums; }
+.count span { font-size: 12px; }
+
+.toggle-row { cursor: pointer; }
+
+details summary { cursor: pointer; padding: 0 2px; }
+.breakdown { list-style: none; margin: 8px 0 0; padding: 0 2px; display: grid; gap: 4px; font-size: 13px; }
+.breakdown li { display: flex; justify-content: space-between; }
+.breakdown b { font-variant-numeric: tabular-nums; }
+
+footer { font-size: 13px; padding-top: 2px; }

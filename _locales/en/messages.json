@@ -1,0 +1,10 @@
+{
+  "extName": {
+    "message": "Hush – Ad, Popup & Scam Blocker",
+    "description": "Extension name"
+  },
+  "extDescription": {
+    "message": "Blocks ads and banners, popups, notification spam, fake virus warnings and other browser scam tricks.",
+    "description": "Extension description"
+  }
+}

@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hush test playground</title>
+<style>
+  :root { color-scheme: light dark; --bg:#fff; --fg:#111827; --muted:#6b7280; --card:#f4f5f7; --border:#e5e7eb; --accent:#4f46e5; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#111318; --fg:#e5e7eb; --muted:#9ca3af; --card:#1b1e25; --border:#2a2e37; --accent:#818cf8; } }
+  body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.5 system-ui, "Segoe UI", sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 24px 16px 64px; display: grid; gap: 14px; }
+  h1 { margin: 0; font-size: 24px; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:14px 16px; display:grid; gap:8px; }
+  .row { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+  button { font:inherit; padding:7px 14px; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--fg); cursor:pointer; }
+  button:hover { border-color: var(--accent); }
+  .muted { color: var(--muted); font-size: 14px; }
+  .result { font-weight: 600; min-height: 1.4em; }
+  .ok { color: #16a34a; } .bad { color: #dc2626; }
+  #AD_300 { width: 300px; max-width: 100%; height: 120px; background: repeating-linear-gradient(45deg,#f59e0b,#f59e0b 10px,#fbbf24 10px,#fbbf24 20px); color:#000; display:grid; place-items:center; font-weight:700; }
+  .my-banner { padding: 16px; background: #ec4899; color: #fff; border-radius: 8px; font-weight: 700; text-align: center; }
+  #scam { position: fixed; inset: 0; background: #0078d7; color: #fff; z-index: 99999; display: grid; place-items: center; text-align: center; font-size: 22px; padding: 24px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Hush test playground</h1>
+  <p class="muted">Open this page with Hush installed. Every test is harmless – nothing here is a real ad or scam.
+  <b>Note:</b> for "file://" pages in Chrome, enable <i>Allow access to file URLs</i> on the Hush extension details page, or serve this folder with <code>npx serve tests</code>.</p>
+
+  <div class="card">
+    <div class="row"><b>1. Popup without a real click</b><button id="t1">Run</button></div>
+    <div class="muted">A script tries to open a new window 1 second after you press Run (no click at that moment).</div>
+    <div class="result" id="r1"></div>
+  </div>
+
+  <div class="card">
+    <div class="row"><b>2. Click anywhere = popunder</b><button id="t2">Arm</button></div>
+    <div class="muted">After arming, click any plain text on the page. Ad scripts do this to open popunders.</div>
+    <div class="result" id="r2"></div>
+  </div>
+
+  <div class="card">
+    <div class="row"><b>3. Legit button opens one window</b><button id="t3">Open example.com</button></div>
+    <div class="muted">A real button should still work, but only one window per click (it tries to open two).</div>
+    <div class="result" id="r3"></div>
+  </div>
+
+  <div class="card">
+    <div class="row"><b>4. "Click Allow" notification prompt</b><button id="t4">Run</button></div>
+    <div class="result" id="r4"></div>
+  </div>
+
+  <div class="card">
+    <div class="row"><b>5. Scam alert loop</b><button id="t5">Run</button></div>
+    <div class="muted">Tries to show 10 alerts in a row. You should see at most 2.</div>
+    <div class="result" id="r5"></div>
+  </div>
+
+  <div class="card">
+    <div class="row"><b>6. Fullscreen hijack</b><button id="t6">Run</button></div>
+    <div class="result" id="r6"></div>
+  </div>
+
+  <div class="card">
+    <div class="row"><b>7. Fake "virus" screen</b><button id="t7">Show</button></div>
+    <div class="muted">Adds a full-screen fake Windows warning. Hush should remove it within a second.</div>
+    <div class="result" id="r7"></div>
+  </div>
+
+  <div class="card">
+    <div class="row"><b>8. Ad banner (EasyList)</b></div>
+    <div id="AD_300">If you can read this, banner hiding is OFF</div>
+    <div class="result" id="r8"></div>
+  </div>
+
+  <div class="card">
+    <div class="row"><b>9. Network ad blocking</b><button id="t9">Run</button></div>
+    <div class="muted">Tries to load Google's ad script.</div>
+    <div class="result" id="r9"></div>
+  </div>
+
+  <div class="card">
+    <div class="row"><b>10. Hide it yourself</b></div>
+    <div class="my-banner">ANNOYING BANNER – try hiding me</div>
+    <div class="muted">Click the Hush icon → <b>Hide an ad on this page</b> → click this pink banner → <b>Hide it</b>. Reload: it stays hidden.</div>
+  </div>
+</main>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const say = (id, ok, text) => { const el = $(id); el.className = "result " + (ok ? "ok" : "bad"); el.textContent = (ok ? "✔ " : "✘ ") + text; };
+
+  $("t1").onclick = () => setTimeout(() => {
+    const w = window.open("https://example.com/?popup");
+    say("r1", !w, w ? "Popup opened – NOT blocked" : "Popup blocked");
+  }, 1000);
+
+  $("t2").onclick = () => {
+    $("r2").textContent = "Armed – now click on any plain text…";
+    document.addEventListener("click", function handler(e) {
+      if (e.target.closest("button")) return;
+      document.removeEventListener("click", handler, true);
+      const w = window.open("https://example.com/?popunder");
+      say("r2", !w, w ? "Popunder opened – NOT blocked" : "Popunder blocked");
+    }, true);
+  };
+
+  $("t3").onclick = () => {
+    const a = window.open("https://example.com/?legit");
+    const b = window.open("https://example.com/?extra");
+    say("r3", !!a && !b, `first window: ${a ? "opened" : "blocked"}, second: ${b ? "opened" : "blocked"}`);
+  };
+
+  $("t4").onclick = async () => {
+    const p = await Notification.requestPermission();
+    say("r4", p === "denied", `site got: "${p}"`);
+  };
+
+  $("t5").onclick = () => {
+    let shown = 0;
+    for (let i = 0; i < 10; i++) { const t = performance.now(); alert(`WARNING! Your computer is infected (${i + 1}/10)`); if (performance.now() - t > 50) shown++; }
+    say("r5", shown <= 2, `about ${shown} alert(s) actually shown`);
+  };
+
+  $("t6").onclick = () => document.body.requestFullscreen().then(
+    () => { say("r6", false, "Went fullscreen – NOT blocked"); document.exitFullscreen(); },
+    (e) => say("r6", true, "Blocked (" + e.name + ")")
+  );
+
+  $("t7").onclick = () => {
+    document.getElementById("scam")?.remove();
+    const d = document.createElement("div");
+    d.id = "scam";
+    d.innerHTML = "<div><h2>⚠ Windows Defender Security Warning</h2><p>Your computer has been infected with a virus (Trojan Spyware).</p><p>Do not close this page or restart your computer.</p><p>Call Microsoft Support now: +1 (888) 555-0199 (Toll-Free)</p><p style='font-size:14px'>(test overlay – click to close if Hush missed it)</p></div>";
+    d.onclick = () => d.remove();
+    document.body.appendChild(d);
+    setTimeout(() => say("r7", !document.getElementById("scam"), document.getElementById("scam") ? "Fake screen still there" : "Fake screen removed"), 2000);
+  };
+
+  setTimeout(() => {
+    const hidden = getComputedStyle($("AD_300")).display === "none";
+    say("r8", hidden, hidden ? "Banner hidden (you can't see it above)" : "Banner visible – ads blocking off?");
+  }, 800);
+
+  $("t9").onclick = () => fetch("https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js", { mode: "no-cors" })
+    .then(() => say("r9", false, "Ad script loaded – NOT blocked"), () => say("r9", true, "Ad script blocked"));
+</script>
+</body>
+</html>
