@@ -2,6 +2,13 @@
 
 All notable changes to KinGuard. Filter-list refreshes published by the weekly CI job bump the patch version and are not listed individually.
 
+## 2.6.0
+- **AI-content detection beyond platform labels.** KinGuard now reads the signals uploaders leave: AI generator names (Sora, Veo, Seedance, Kling, Runway, Midjourney, HeyGen, ElevenLabs, Suno … 35+ tools, with care for everyday words like "runway" or "Sora the cat"), phrases such as "AI-generated" or "made with AI", AI hashtags, and platform labels (YouTube, TikTok, Meta).
+- **YouTube chip only when there is a signal:** "AI-generated (labelled)", "Likely AI-generated", "Possibly AI" or "Possible deepfake scam", with the reasons in its tooltip. The meaningless "none declared" chip is gone.
+- **Popup "AI check" on any site with video** (YouTube, TikTok, Instagram, Facebook, news sites): shows why a video is probably AI-made.
+- Fewer page functions wrapped (`appendChild`/`append…`, `dispatchEvent` now only on links), so websites' own console warnings aren't attributed to KinGuard.
+- Repaired a text-encoding corruption in the scam-shield script, and CI now fails on any garbled encoding.
+
 ## 2.5.1
 - **AI status chip under every YouTube video:** grey "AI label: none declared", amber "AI-generated (creator says)" or red "Possible deepfake scam", so you can always see the check ran.
 - AI disclosure is now also read from YouTube's page data when you click from video to video, and from the on-player label used for photorealistic AI.

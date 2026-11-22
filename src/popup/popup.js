@@ -157,6 +157,92 @@
     }
   })();
 
+  // AI-content check: platform AI labels, AI tool names and AI wording in the page's title/description.
+  // Runs on any site with video, plus the known video platforms. Self-contained: it runs in the page.
+  function collectAiSignals() {
+    try {
+      const LIMIT = 3000;
+      const content = (sel) => document.querySelector(sel)?.content || "";
+      const hostName = location.hostname.replace(/^www\./, "");
+      const isYouTube = /(^|\.)youtube\.com$/.test(hostName);
+      const isTikTok = /(^|\.)tiktok\.com$/.test(hostName);
+      const isMeta = /(^|\.)(facebook|instagram)\.com$/.test(hostName);
+      const parts = [];
+      if (isYouTube) {
+        for (const el of document.querySelectorAll("ytd-watch-metadata, #movie_player")) parts.push(el.innerText || "");
+      } else if (isTikTok) {
+        for (const el of document.querySelectorAll('[data-e2e*="label"], [class*="AIGC" i], [class*="ai-label" i]')) parts.push(el.innerText || "");
+      } else if (isMeta) {
+        const LABEL_RE = /AI info|Made with AI|AI-generated|Creator labeled/i;
+        for (const el of document.querySelectorAll("span")) {
+          const t = (el.textContent || "").trim();
+          if (t.length > 0 && t.length < 60 && LABEL_RE.test(t)) parts.push(t);
+        }
+      }
+      const platformText = parts.join(" ").slice(0, LIMIT);
+      const descriptionExtra = isYouTube
+        ? (document.querySelector("ytd-watch-metadata #description")?.innerText || "").slice(0, LIMIT)
+        : "";
+      return {
+        hasVideo: !!document.querySelector("video"),
+        title: document.title || "",
+        description: (content('meta[name="description"]') || content('meta[property="og:description"]')) + " " + content('meta[property="og:title"]'),
+        keywords: content('meta[name="keywords"]'),
+        platformText,
+        descriptionExtra,
+      };
+    } catch {
+      return {};
+    }
+  }
+
+  (async () => {
+    try {
+      if (!tab || !host || !/^https?:/.test(tab.url || "")) return;
+      const { enabled, guards } = await BLK.getSettings();
+      if (!enabled || !guards.ai || typeof BlkAI === "undefined") return;
+
+      let data;
+      try {
+        const [injection] = await api.scripting.executeScript({ target: { tabId: tab.id }, func: collectAiSignals });
+        data = injection?.result;
+      } catch {
+        return; // restricted page
+      }
+      if (!data) return;
+      const isVideoPlatform = /(^|\.)(youtube|tiktok|instagram|facebook)\.com$/.test(host);
+      if (!data.hasVideo && !isVideoPlatform) return;
+
+      const result = BlkAI.analyze({
+        title: data.title || "",
+        description: (data.description || "") + " " + (data.descriptionExtra || ""),
+        keywords: data.keywords ? [data.keywords] : [],
+        platformText: data.platformText || "",
+        host,
+      });
+      if (!result || !result.level || result.level === "none") return;
+
+      const TITLES = {
+        labelled: "AI-generated (labelled by the platform)",
+        likely: "This video is probably AI-generated",
+        possible: "This may contain AI-generated content",
+      };
+      const card = $("aiCard");
+      card.classList.add("level-" + result.level);
+      $("aiTitle").textContent = TITLES[result.level] || TITLES.possible;
+      $("aiReasons").replaceChildren(
+        ...(result.reasons || []).map((text) => {
+          const li = document.createElement("li");
+          li.textContent = text;
+          return li;
+        })
+      );
+      card.hidden = false;
+    } catch {
+      /* never break the popup */
+    }
+  })();
+
   $("grant").addEventListener("click", async () => {
     if (await api.permissions.request(ALL_SITES)) await applyAndReload();
     render();

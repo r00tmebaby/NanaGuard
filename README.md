@@ -40,7 +40,7 @@ Made for people who just want the internet to be safe and calm, like your parent
 - Stops fake **"Your PC is infected"** screens, alert loops and notification spam
 
 **Spots AI fakes and checks facts**
-- Shows an **AI status chip under every YouTube video**: *AI label: none declared*, *AI-generated (creator says)* (YouTube's hidden "altered or synthetic content" disclosure, plus a banner) or *Possible deepfake scam*
+- **Flags AI-generated videos**, even when the uploader didn't use the platform's label: it reads AI tool names (Sora, Veo, Seedance, Kling, Runway…), "AI-generated" phrases, AI hashtags and platform labels (YouTube, TikTok, Meta). On YouTube a chip under the video says *Likely AI-generated*, *AI-generated (labelled)* or *Possible deepfake scam*, with reasons. On any other site the toolbar popup shows an **AI check**. These are signals from the page, not a pixel scan, so no extension can be certain from pixels alone.
 - Warns about **deepfake scam videos**: fake celebrities promoting crypto giveaways, "investment platforms" or miracle cures
 - **Check facts** in one click: right-click any text, use the buttons under YouTube videos, or open the toolbar popup. Choose **Other news sources** (is anyone else reporting it?), **Fact-checkers** (claims already reviewed by professionals), **ChatGPT** or **Google**, each opening in a new tab. Brand-new stories usually have no fact-check yet, so for news, "other sources" is the best first check.
 

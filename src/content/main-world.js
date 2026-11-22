@@ -1,4 +1,4 @@
-﻿/* Runs inside the page's own JavaScript context (MAIN world) before any page
+/* Runs inside the page's own JavaScript context (MAIN world) before any page
  * script. Neutralises the APIs that ad networks and scam pages abuse.
  * Registered dynamically by background.js, so allowlisted sites never get it. */
 (() => {
@@ -33,13 +33,13 @@
   try { delete window.__kinguardFlags; } catch { /* ignore */ }
 
   /* ---------- fake "verify you're human" (ClickFix) clipboard guard ---------- */
-  // A command interpreter / LOLBin in the copied textâ€¦
+  // A command interpreter / LOLBin in the copied text…
   const CMD = /\b(powershell|pwsh)(\.exe)?\b|\bmshta(\.exe)?\b|\bcmd(\.exe)?\s+\/[ck]\b|\b(rundll32|regsvr32|wscript|cscript|bitsadmin|certutil|msiexec|conhost|forfiles|wmic|finger)(\.exe)?\b|\b(curl|wget)\b[^\n]*\|\s*(sudo\s+)?(ba|z)?sh\b|\bosascript\b|\bbase64\s+(-d|--decode)\b|\/bin\/(ba|z)?sh\s+-c\b/i;
-  // â€¦that downloads/hides/executes somethingâ€¦
+  // …that downloads/hides/executes something…
   const STRONG = /(-w(indowstyle)?\s+h(idden)?|-e(nc(odedcommand)?)?\s+[A-Za-z0-9+/=]{20,}|\biex\b|invoke-expression|downloadstring|downloadfile|frombase64string|invoke-webrequest|\biwr\b|\birm\b|start-process|mshta\s+["']?https?:|\|\s*(ba|z)?sh\b|-urlcache|https?:\/\/\S+\.(hta|ps1|vbs|bat|cmd|msi|exe|zip|dll)\b)/i;
-  // â€¦disguised as a human check, or on a page telling you to open Run/Terminal and paste.
-  const BAIT = /(captcha|i am not a robot|i'?m not a robot|not a robot|i am human|verif(y|ication)|cloudflare|ray id|âœ…|âœ”)/i;
-  const PAGE_BAIT = /(win(dows)?\s*(key)?\s*(\+|and)\s*r\b|âŠž\s*\+?\s*r\b|press\s+(the\s+)?windows\s+(key|button)|run dialog|ctrl\s*\+\s*v|cmd\s*\+\s*v|command\s*\+\s*v|paste\b.{0,30}\b(terminal|run box|run window|command))/i;
+  // …disguised as a human check, or on a page telling you to open Run/Terminal and paste.
+  const BAIT = /(captcha|i am not a robot|i'?m not a robot|not a robot|i am human|verif(y|ication)|cloudflare|ray id|✅|✔)/i;
+  const PAGE_BAIT = /(win(dows)?\s*(key)?\s*(\+|and)\s*r\b|⊞\s*\+?\s*r\b|press\s+(the\s+)?windows\s+(key|button)|run dialog|ctrl\s*\+\s*v|cmd\s*\+\s*v|command\s*\+\s*v|paste\b.{0,30}\b(terminal|run box|run window|command))/i;
   const SAFE_TEXT = "STOP! KinGuard blocked a dangerous command from a website. Do not paste anything a website tells you to. Close this window.";
   const pageBait = () => {
     for (const d of [document, (() => { try { return window.top.document; } catch { return null; } })()]) {
@@ -258,18 +258,21 @@
     wrap(W.HTMLFormElement && W.HTMLFormElement.prototype, "submit", guardNav);
     wrap(W.HTMLFormElement && W.HTMLFormElement.prototype, "requestSubmit", guardNav);
 
-    wrap(W.EventTarget.prototype, "dispatchEvent", (orig) =>
-      function dispatchEvent(ev) {
-        if (
-          ev && ev.type === "click" && this && this.nodeName === "A" &&
-          opensNewWindow(this) && (linkPopunder(this.href || this.action) || !allowNewWindow())
-        ) {
+    // Synthetic click events on links: hook dispatchEvent on <a> elements only (an own property
+    // on HTMLAnchorElement.prototype), not on every EventTarget, so the page's other events never
+    // pass through KinGuard's code (and its warnings aren't attributed to us).
+    if (W.HTMLAnchorElement) {
+      const nativeDispatchEvent = W.EventTarget.prototype.dispatchEvent;
+      const anchorDispatch = function dispatchEvent(ev) {
+        if (ev && ev.type === "click" && opensNewWindow(this) && (linkPopunder(this.href) || !allowNewWindow())) {
           report("popup");
           return false;
         }
-        return orig.apply(this, arguments);
-      }
-    );
+        return nativeDispatchEvent.apply(this, arguments);
+      };
+      natives.set(anchorDispatch, nativeDispatchEvent);
+      Object.defineProperty(W.HTMLAnchorElement.prototype, "dispatchEvent", { value: anchorDispatch, writable: true, configurable: true });
+    }
 
     // Real clicks on invisible full-page links that open a new window.
     W.addEventListener(
@@ -287,20 +290,11 @@
       true
     );
 
-    // Popunder scripts open windows through fresh about:blank iframes to get
-    // an unpatched window.open â€” patch child realms as soon as they appear.
-    const hardenFrame = (el, getWin) => {
-      try {
-        if (el && (el.nodeName === "IFRAME" || el.nodeName === "FRAME")) harden(getWin(el));
-        if (el && el.querySelectorAll && el.firstElementChild) {
-          for (const f of el.querySelectorAll("iframe,frame")) harden(getWin(f));
-        }
-      } catch {
-        /* ignore */
-      }
-    };
-    const cwDesc = Object.getOwnPropertyDescriptor(W.HTMLIFrameElement.prototype, "contentWindow");
-    const getWin = (f) => (cwDesc ? cwDesc.get.call(f) : f.contentWindow);
+    // Popunder scripts open windows through fresh about:blank iframes to get an unpatched
+    // window.open. Their window is hardened the moment the page reaches it via
+    // contentWindow / contentDocument (below). DOM insertion methods (appendChild, append,
+    // innerHTML, …) are deliberately NOT wrapped: they are hot paths, and wrapping them made
+    // Chrome attribute pages' own console warnings to KinGuard.
 
     for (const proto of [W.HTMLIFrameElement.prototype, W.HTMLFrameElement && W.HTMLFrameElement.prototype]) {
       // Pages (feature detection, frameworks) sometimes read these on non-iframe objects, e.g.
@@ -324,19 +318,6 @@
         },
       }));
     }
-    const afterInsert = (orig) =>
-      function () {
-        const result = orig.apply(this, arguments);
-        for (const n of arguments) hardenFrame(n, getWin);
-        return result;
-      };
-    for (const key of ["appendChild", "insertBefore", "replaceChild"]) wrap(W.Node.prototype, key, afterInsert);
-    for (const key of ["append", "prepend", "after", "before", "replaceWith"]) {
-      wrap(W.Element.prototype, key, afterInsert);
-    }
-    // innerHTML / insertAdjacentHTML are deliberately NOT wrapped: iframes created that way are
-    // still hardened when the page touches contentWindow/contentDocument (above), and wrapping
-    // those hot setters made Chrome attribute pages' own console warnings to KinGuard.
 
     /* Notification spam ------------------------------------------------- */
     if (W.Notification) {

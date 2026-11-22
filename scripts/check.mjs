@@ -31,6 +31,17 @@ for (const f of (await walk("src")).filter((f) => f.endsWith(".js"))) {
   }
 }
 
+// 1b. Encoding: UTF-8 text mis-saved as Windows-1252 (an em dash shows up as three odd characters) silently breaks
+// regexes containing non-ASCII characters. Fail loudly.
+for (const f of [...(await walk("src")), ...(await walk("scripts")), "README.md", "CHANGELOG.md", "PRIVACY.md"]) {
+  if (!/\.(js|mjs|html|css|json|md)$/.test(f)) continue;
+  const text = await readFile(path.join(ROOT, f), "utf8");
+  // Escaped (U+00E2 U+20AC etc.) so this file doesn't match itself.
+  if (/\u00e2\u20ac|\u00e2\u0153|\u00e2\u0160|\u00c3[\u0080-\u00bf]|\u00c2[\u00b7\u00a9\u00ae\u00b0]/.test(text)) {
+    fail(`${f}: garbled text encoding (UTF-8 saved as Windows-1252)`);
+  }
+}
+
 // 2. JSON + manifest references
 const manifest = await json("manifest.json");
 const refs = [

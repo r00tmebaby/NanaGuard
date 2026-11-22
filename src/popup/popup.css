@@ -28,6 +28,12 @@ body.paused header h1::after { content: " · paused"; font-weight: 400; color: v
 }
 .check-btns .btn svg { color: var(--accent); }
 .check-btns .btn:hover { background: var(--card); }
+.ai-card { display: grid; gap: 4px; padding: 10px 12px; border-left: 4px solid #f59e0b; }
+.ai-card[hidden] { display: none; }
+.ai-card.level-labelled, .ai-card.level-likely { border-left-color: #d97706; }
+.ai-card.level-possible { border-left-color: #fbbf24; }
+.ai-card .label { font-weight: 600; }
+.ai-reasons { margin: 0; padding-left: 18px; font-size: 12px; }
 .smart { font-size: 13px; padding: 8px 12px; }
 .small-btn { padding: 3px 10px; font-size: 12px; }
 

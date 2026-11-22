@@ -507,19 +507,23 @@ try {
       results.length === 4 && results.every((u, i) => u.includes(expected[i])), results.map((u) => u.slice(0, 45)).join(" | "));
 
     // Status chip (inside the closed shadow root) — read via CDP.
-    const chipText = async () => {
-      const { root: r } = await cdp.send("DOM.getDocument", { depth: -1, pierce: true });
+    // Returns the visible chip text, "(hidden)" when the chip is hidden, or null if absent.
+    globalThis.__chipText = async (pg, session) => {
+      const { root: r } = await session.send("DOM.getDocument", { depth: -1, pierce: true });
       let text = null;
       (function walk(n, inHost) {
         const h = inHost || n.nodeName === "KINGUARD-CHECK";
-        if (h && n.nodeName === "SPAN" && (n.attributes || []).some((a) => /^s /.test(a))) {
-          text = (n.children || []).map((c) => c.nodeValue || "").join("");
+        const attrs = n.attributes || [];
+        if (h && n.nodeName === "SPAN" && attrs.some((a) => /^s( |$)/.test(a))) {
+          text = attrs.includes("hidden") ? "(hidden)" : (n.children || []).map((c) => c.nodeValue || "").join("");
         }
         for (const c of [...(n.children || []), ...(n.shadowRoots || [])]) walk(c, h);
       })(r, false);
       return text;
     };
-    check("youtube: AI status chip visible on a normal video", (await chipText()) === "AI label: none declared", String(await chipText()));
+    const chipText = () => globalThis.__chipText(ytp, cdp);
+    const normalChip = await chipText();
+    check("youtube: no AI chip on a normal video (no meaningless 'none' badge)", normalChip === "(hidden)" || normalChip === null, String(normalChip));
 
     // Simulate YouTube loading watch data that carries the AI disclosure (as on a labelled video):
     // the page's own JSON.parse goes through KinGuard's hook → chip turns amber + banner.
@@ -529,9 +533,20 @@ try {
         body: "Altered or synthetic content: Sound or visuals were significantly edited or digitally generated." } } } },
     })));
     await sleep(2500);
-    check("youtube: AI disclosure detected from YouTube's data → chip + banner", (await chipText()) === "AI-generated (creator says)" && (await hasWarning(ytp)), String(await chipText()));
+    check("youtube: AI disclosure detected from YouTube's data → chip + banner", (await chipText()) === "AI-generated (labelled)" && (await hasWarning(ytp)), String(await chipText()));
   }
   await ytp.close();
+
+  // Real AI video WITHOUT YouTube's label: title names Seedance (AI generator) + #AIVideo hashtags.
+  const aiv = await browser.newPage();
+  await aiv.setViewport({ width: 1280, height: 900 });
+  await aiv.goto("https://www.youtube.com/watch?v=o_1SKvpvs0g", { waitUntil: "load" }).catch(() => {});
+  await sleep(6000);
+  await aiv.evaluate(() => { const b = [...document.querySelectorAll("button")].find((x) => /reject all/i.test(x.textContent)); if (b) b.click(); }).catch(() => {});
+  await sleep(6000);
+  const aivChip = await globalThis.__chipText(aiv, await aiv.createCDPSession());
+  check("youtube: unlabelled AI video (Seedance) shows 'Likely AI-generated'", aivChip === "Likely AI-generated", String(aivChip));
+  await aiv.close();
 
   /* --- allowlist turns everything off --- */
   await worker.evaluate(async () => { await chrome.storage.sync.set({ blocklist: [], allowlist: ["localhost"] }); });

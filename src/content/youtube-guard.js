@@ -53,6 +53,31 @@ var BlkYouTube = (() => {
 
   const AI_LABEL = /(Altered or synthetic content|Sound or visuals were significantly edited or digitally generated)/i;
   const hasAiLabel = (text) => AI_LABEL.test(text || "");
+  const AI_LABEL_REASON = "YouTube's label: \"Altered or synthetic content\"";
+  const scamTarget = (kind) => kind === "health" ? "a miracle cure or health product" : kind === "invest" ? "an investment platform" : "a crypto giveaway";
+
+  /* Heuristic AI signals from ai-signals.js (optional global; the chip and banner degrade to
+   * "no signal" if it failed to load). forcedLabel = YouTube's own label was found in page data. */
+  function analyzeAi(ctx, forcedLabel) {
+    let res = { level: "none", reasons: [], tools: [] };
+    if (typeof BlkAI !== "undefined" && BlkAI && typeof BlkAI.analyze === "function") {
+      try {
+        const out = BlkAI.analyze({
+          title: ctx.title, description: ctx.description, keywords: [], channel: ctx.channel,
+          platformText: ctx.labelText, host: location.hostname,
+        });
+        if (out && typeof out === "object") {
+          res = {
+            level: typeof out.level === "string" ? out.level : "none",
+            reasons: Array.isArray(out.reasons) ? out.reasons : [],
+            tools: Array.isArray(out.tools) ? out.tools : [],
+          };
+        }
+      } catch { /* signals are best-effort */ }
+    }
+    if (forcedLabel && res.level !== "labelled") res = { level: "labelled", reasons: [AI_LABEL_REASON], tools: [] };
+    return res;
+  }
 
   /* ---------------- page reading ---------------- */
   const videoId = () => {
@@ -86,17 +111,27 @@ var BlkYouTube = (() => {
 
   /* ---------------- status chip + fact-check buttons under the title ---------------- */
   const STATUS = {
-    none: { cls: "none", text: "AI label: none declared", tip: "The creator has not declared this video as AI-generated or altered. KinGuard also found no deepfake-scam signs." },
-    ai: { cls: "ai", text: "AI-generated (creator says)", tip: "YouTube's 'Altered or synthetic content' label is on this video: what you see or hear may not be real." },
-    scam: { cls: "scam", text: "Possible deepfake scam", tip: "A famous person's name is used to promote crypto, investments or cures: a common AI deepfake scam." },
+    labelled: { cls: "ai", text: "AI-generated (labelled)" },
+    likely: { cls: "ai", text: "Likely AI-generated" },
+    possible: { cls: "maybe", text: "Possibly AI" },
+    scam: { cls: "scam", text: "Possible deepfake scam" },
   };
   let statusEl = null;
-  function setStatus(kind) {
+  // Any kind not in STATUS (none, hidden, ...) hides the chip. Only real signals are shown.
+  function setStatus(kind, reasons = []) {
     if (!statusEl) return;
-    const s = STATUS[kind] || STATUS.none;
+    const s = STATUS[kind];
+    if (!s) {
+      statusEl.hidden = true;
+      statusEl.textContent = "";
+      statusEl.title = "";
+      return;
+    }
+    const why = reasons.length ? reasons.join(" · ") : "KinGuard found an AI signal";
+    statusEl.hidden = false;
     statusEl.className = "s " + s.cls;
     statusEl.textContent = s.text;
-    statusEl.title = s.tip;
+    statusEl.title = why + " (based on the video's title, description and labels — not a pixel scan)";
   }
 
   function addCheckButton(showStatus = false, showButtons = true) {
@@ -112,16 +147,17 @@ var BlkYouTube = (() => {
       background:#eef2ff;color:#3730a3;border-radius:999px;padding:6px 12px;cursor:pointer;white-space:nowrap}
       button:hover{background:#e0e7ff}
       .s{font:600 12px/1 system-ui,Roboto,sans-serif;border-radius:999px;padding:7px 10px;white-space:nowrap;margin-right:6px;cursor:help}
-      .none{background:#f3f4f6;color:#4b5563}.ai{background:#fef3c7;color:#92400e}.scam{background:#fee2e2;color:#991b1b}
+      .s[hidden]{display:none}
+      .ai{background:#fef3c7;color:#92400e}.maybe{background:#fff7ed;color:#9a3412}.scam{background:#fee2e2;color:#991b1b}
       @media (prefers-color-scheme: dark){button{background:#1e1b4b;color:#c7d2fe;border-color:#3730a3}.t{color:#9ca3af}
-        .none{background:#272727;color:#aaa}.ai{background:#3a2a07;color:#fcd34d}.scam{background:#450a0a;color:#fca5a5}}`;
+        .ai{background:#3a2a07;color:#fcd34d}.maybe{background:#2a1a05;color:#fdba74}.scam{background:#450a0a;color:#fca5a5}}`;
     const row = document.createElement("div");
     row.className = "row";
     root.append(style, row);
     if (showStatus) {
       statusEl = document.createElement("span");
       row.append(statusEl);
-      setStatus("none");
+      setStatus("hidden");
     }
     if (!showButtons) { host.append(el); return; }
     const lead = document.createElement("span");
@@ -170,9 +206,10 @@ var BlkYouTube = (() => {
       shownFor = id;
 
       const verdict = assess(ctx);
-      const isAi = labelled.has(id) || hasAiLabel(ctx.labelText) ||
-        (initCache.has(id) ? initCache.get(id) : (initCache.set(id, initialDataHasLabel(id)), initCache.get(id)));
-      setStatus(verdict.flagged ? "scam" : isAi ? "ai" : "none");
+      const initLabel = initCache.has(id) ? initCache.get(id) : (initCache.set(id, initialDataHasLabel(id)), initCache.get(id));
+      const ai = analyzeAi(ctx, labelled.has(id) || hasAiLabel(ctx.labelText) || initLabel);
+      if (verdict.flagged) setStatus("scam", [`Uses ${verdict.celeb}'s name to promote ${scamTarget(verdict.kind)}`]);
+      else setStatus(ai.level, ai.reasons);
 
       if (!done.has("scam:" + id)) {
         const a = verdict;
@@ -180,7 +217,7 @@ var BlkYouTube = (() => {
           done.add("scam:" + id);
           send("deepfake");
           pause();
-          const what = a.kind === "health" ? "a miracle cure or health product" : a.kind === "invest" ? "an investment platform" : "a crypto giveaway";
+          const what = scamTarget(a.kind);
           warn({
             id: "deepfake-" + id,
             level: "high",
@@ -196,14 +233,18 @@ var BlkYouTube = (() => {
           });
         }
       }
-      if (!done.has("ai:" + id) && isAi) {
+      if (!done.has("ai:" + id) && (ai.level === "labelled" || ai.level === "likely")) {
         done.add("ai:" + id);
         send("ailabel");
+        const isLabel = ai.level === "labelled";
+        const why = ai.reasons.length ? ai.reasons.join(". ").replace(/\.+$/, "") + "." : "Signals in the title or description point to AI generation.";
         warn({
           id: "ai-" + id,
           level: "medium",
-          title: "The creator says this video is AI-generated or altered",
-          lines: ["YouTube's label: \"Altered or synthetic content\". What you see or hear may not be real."],
+          title: isLabel ? "The creator says this video is AI-generated or altered" : "This video is probably AI-generated",
+          lines: isLabel
+            ? ["YouTube's label: \"Altered or synthetic content\". What you see or hear may not be real."]
+            : [why, "What you see or hear may not be real."],
           actions: [{ label: "OK", kind: "secondary" }],
         });
       }
