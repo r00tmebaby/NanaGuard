@@ -21,7 +21,13 @@ Made for people who just want the internet to be safe and calm, like your parent
 ![Opera](https://img.shields.io/badge/Opera-FF1B2D?logo=opera&logoColor=white)
 ![Manifest V3](https://img.shields.io/badge/Manifest-V3-4f46e5)
 
-**[Download](https://github.com/r00tmebaby/KinGuard/releases/latest)** · **[Screenshots](#screenshots)** · **[Install](#install)** · **[Privacy](PRIVACY.md)** · **[Changelog](CHANGELOG.md)**
+**[Download](https://github.com/r00tmebaby/KinGuard/releases/latest)** · **[Video](https://youtu.be/jZSbmQ35CPc)** · **[Screenshots](#screenshots)** · **[Install](#install)** · **[Privacy](PRIVACY.md)** · **[Changelog](CHANGELOG.md)**
+
+<a href="https://youtu.be/jZSbmQ35CPc" title="Watch the KinGuard video on YouTube">
+  <img src="https://img.youtube.com/vi/jZSbmQ35CPc/maxresdefault.jpg" alt="Watch the KinGuard video on YouTube" width="720">
+</a>
+
+<sub>Watch the 15-second video on YouTube</sub>
 
 </div>
 
