@@ -17,7 +17,23 @@ var BLK = Object.freeze({
     annoyances: { title: "Cookie banners & annoyances", desc: "Fanboy cookie list and uBlock annoyances." },
   }),
 
+  GUARD_INFO: Object.freeze({
+    phishing: { title: "Fake website warnings", desc: "Warns on look-alike sites (paypa1.com, paypal-login.top, letters swapped for foreign look-alikes) and pages pretending to be your bank, email or a shop." },
+    password: { title: "Password alert", desc: "Warns if you type the password of an important site (bank, email, PayPal…) on a different website. Only a scrambled fingerprint is stored, never the password." },
+    clickfix: { title: "Fake 'verify you're human' guard", desc: "Blocks pages that secretly copy a virus command and tell you to press Windows + R and paste it." },
+    scam: { title: "Scam request warnings", desc: "Warns when a page asks you to install remote-access apps, pay with gift cards or Bitcoin, or call a 'support' number." },
+  }),
+
+  async setGuard(key, on) {
+    const { guards } = await BLK.getSettings();
+    await api.storage.sync.set({ guards: { ...guards, [key]: !!on } });
+  },
+
   STAT_LABELS: Object.freeze({
+    phishing: "Fake websites warned",
+    password: "Password-reuse alerts",
+    clickfix: "Fake 'verify' commands blocked",
+    scam: "Scam requests flagged",
     smart: "Ads auto-detected",
     popup: "Popups & popunders",
     notification: "Notification prompts",
@@ -32,9 +48,11 @@ var BLK = Object.freeze({
 
   async getSettings() {
     const s = await api.storage.sync.get({
-      enabled: true, ads: true, lists: {}, smart: true,
-      allowlist: [], blocklist: [], smartOff: [],
+      enabled: true, ads: true, lists: {}, smart: true, guards: {},
+      allowlist: [], blocklist: [], smartOff: [], trusted: [],
     });
+    const guards = {};
+    for (const g of Object.keys(BLK.GUARD_INFO)) guards[g] = s.guards?.[g] !== false;
     const list = (v) => (Array.isArray(v) ? v.filter(Boolean) : []);
     const lists = {};
     for (const c of BLK.CATEGORIES) lists[c] = s.lists?.[c] ?? (c === "ads" ? s.ads !== false : true);
@@ -42,10 +60,29 @@ var BLK = Object.freeze({
       enabled: s.enabled !== false,
       lists,
       smart: s.smart !== false,
+      guards,
       allowlist: list(s.allowlist),
       blocklist: list(s.blocklist),
       smartOff: list(s.smartOff),
+      trusted: list(s.trusted),
     };
+  },
+
+  /** Registrable-ish domain: last two labels (three for co.uk-style); IPs unchanged. */
+  baseDomain(host) {
+    const h = String(host || "").toLowerCase().replace(/^www\./, "").replace(/\.$/, "");
+    if (/^\d{1,3}(\.\d{1,3}){3}$/.test(h)) return h;
+    const p = h.split(".");
+    if (p.length <= 2) return p.join(".");
+    const sld = p[p.length - 2];
+    return (p[p.length - 1].length === 2 && /^(co|com|net|org|gov|ac|edu|ne|or|go)$/.test(sld) ? p.slice(-3) : p.slice(-2)).join(".");
+  },
+
+  async trustSite(host) {
+    const domain = BLK.normalizeDomain(host);
+    if (!domain) return;
+    const { trusted } = await BLK.getSettings();
+    await api.storage.sync.set({ trusted: [...new Set([...trusted, domain])].sort().slice(0, BLK.MAX_LIST) });
   },
 
   async setList(cat, on) {

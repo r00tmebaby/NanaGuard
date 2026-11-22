@@ -6,6 +6,7 @@
 
   // Capture natives before the page can tamper with them.
   const nativeDispatch = EventTarget.prototype.dispatchEvent;
+  const nativeSetData = DataTransfer.prototype.setData;
   const NativeCustomEvent = CustomEvent;
   const now = () => performance.now();
 
@@ -18,6 +19,41 @@
     } catch {
       /* document not ready / detached */
     }
+  };
+  const warn = (kind) => {
+    try {
+      nativeDispatch.call(document, new NativeCustomEvent("blockify:warn", { detail: String(kind) }));
+    } catch {
+      /* ignore */
+    }
+  };
+
+  // Flags set by background.js (flag file injected just before this one, before any page script).
+  const FLAGS = window.__blockifyFlags || {};
+  try { delete window.__blockifyFlags; } catch { /* ignore */ }
+
+  /* ---------- fake "verify you're human" (ClickFix) clipboard guard ---------- */
+  // A command interpreter / LOLBin in the copied text…
+  const CMD = /\b(powershell|pwsh)(\.exe)?\b|\bmshta(\.exe)?\b|\bcmd(\.exe)?\s+\/[ck]\b|\b(rundll32|regsvr32|wscript|cscript|bitsadmin|certutil|msiexec|conhost|forfiles|wmic|finger)(\.exe)?\b|\b(curl|wget)\b[^\n]*\|\s*(sudo\s+)?(ba|z)?sh\b|\bosascript\b|\bbase64\s+(-d|--decode)\b|\/bin\/(ba|z)?sh\s+-c\b/i;
+  // …that downloads/hides/executes something…
+  const STRONG = /(-w(indowstyle)?\s+h(idden)?|-e(nc(odedcommand)?)?\s+[A-Za-z0-9+/=]{20,}|\biex\b|invoke-expression|downloadstring|downloadfile|frombase64string|invoke-webrequest|\biwr\b|\birm\b|start-process|mshta\s+["']?https?:|\|\s*(ba|z)?sh\b|-urlcache|https?:\/\/\S+\.(hta|ps1|vbs|bat|cmd|msi|exe|zip|dll)\b)/i;
+  // …disguised as a human check, or on a page telling you to open Run/Terminal and paste.
+  const BAIT = /(captcha|i am not a robot|i'?m not a robot|not a robot|i am human|verif(y|ication)|cloudflare|ray id|✅|✔)/i;
+  const PAGE_BAIT = /(win(dows)?\s*(key)?\s*(\+|and)\s*r\b|⊞\s*\+?\s*r\b|press\s+(the\s+)?windows\s+(key|button)|run dialog|ctrl\s*\+\s*v|cmd\s*\+\s*v|command\s*\+\s*v|paste\b.{0,30}\b(terminal|run box|run window|command))/i;
+  const SAFE_TEXT = "STOP! Blockify blocked a dangerous command from a website. Do not paste anything a website tells you to. Close this window.";
+  const pageBait = () => {
+    for (const d of [document, (() => { try { return window.top.document; } catch { return null; } })()]) {
+      if (d && d.body && PAGE_BAIT.test(d.body.innerText.slice(0, 20000))) return true;
+    }
+    return false;
+  };
+  const dangerousCopy = (text) =>
+    FLAGS.clickfix !== false && typeof text === "string" && text.length > 6 && CMD.test(text) &&
+    (BAIT.test(text) || (STRONG.test(text) && pageBait()));
+  let clickfixWarned = false;
+  const blockedCopy = () => {
+    report("clickfix");
+    if (!clickfixWarned) { clickfixWarned = true; warn("clickfix"); }
   };
 
   /* ---------- user-gesture tracking (shared by every realm we patch) ---------- */
@@ -343,6 +379,60 @@
         return blockedPromise();
       }
     );
+
+    /* Fake CAPTCHA clipboard hijack (ClickFix) --------------------------- */
+    wrap(W.Clipboard && W.Clipboard.prototype, "writeText", (orig) =>
+      function writeText(text) {
+        if (dangerousCopy(String(text))) {
+          blockedCopy();
+          return orig.call(this, SAFE_TEXT);
+        }
+        return orig.apply(this, arguments);
+      }
+    );
+    wrap(W.Clipboard && W.Clipboard.prototype, "write", (orig) =>
+      function write(items) {
+        const self = this;
+        const args = arguments;
+        const list = Array.isArray(items) ? items : [];
+        return W.Promise.all(list.map((it) =>
+          it && it.types && [...it.types].includes("text/plain")
+            ? it.getType("text/plain").then((b) => b.text()).catch(() => "")
+            : ""
+        )).then((texts) => {
+          if (texts.some(dangerousCopy)) {
+            blockedCopy();
+            return W.navigator.clipboard.writeText(SAFE_TEXT);
+          }
+          return orig.apply(self, args);
+        });
+      }
+    );
+    wrap(W.DataTransfer && W.DataTransfer.prototype, "setData", (orig) =>
+      function setData(type, data) {
+        if (/text/i.test(String(type)) && dangerousCopy(String(data))) {
+          blockedCopy();
+          return orig.call(this, type, SAFE_TEXT);
+        }
+        return orig.apply(this, arguments);
+      }
+    );
+    // document.execCommand("copy") of a hidden, pre-selected textarea.
+    W.document.addEventListener("copy", (e) => {
+      let text = "";
+      try {
+        const a = W.document.activeElement;
+        if (a && (a.tagName === "TEXTAREA" || a.tagName === "INPUT") && typeof a.selectionStart === "number") {
+          text = a.value.slice(a.selectionStart, a.selectionEnd);
+        }
+        if (!text && W.getSelection) text = String(W.getSelection());
+      } catch { /* ignore */ }
+      if (e.clipboardData && dangerousCopy(text)) {
+        e.preventDefault();
+        nativeSetData.call(e.clipboardData, "text/plain", SAFE_TEXT);
+        blockedCopy();
+      }
+    }, true);
 
     /* Back-button traps -------------------------------------------------- */
     for (const key of ["pushState", "replaceState"]) {

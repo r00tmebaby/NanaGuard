@@ -42,14 +42,7 @@ const getCosmetic = (cat) => loadJson(`rules/${cat}-cosmetic.json`);
 const getPopupHosts = async () => new Set((await loadJson("rules/popup-hosts.json")) || []);
 
 /** Registrable-ish domain: last two labels (three for co.uk-style). */
-function baseDomain(host) {
-  const h = String(host || "").toLowerCase().replace(/^www\./, "");
-  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(h)) return h; // IP address
-  const p = h.split(".");
-  if (p.length <= 2) return p.join(".");
-  const sld = p[p.length - 2];
-  return (p[p.length - 1].length === 2 && /^(co|com|net|org|gov|ac|edu|ne|or|go)$/.test(sld) ? p.slice(-3) : p.slice(-2)).join(".");
-}
+const baseDomain = (host) => BLK.baseDomain(host);
 
 /* ---------------- apply settings ---------------- */
 
@@ -85,9 +78,9 @@ async function register(scripts) {
 }
 
 async function registerScripts() {
-  const { enabled, lists, allowlist } = await BLK.getSettings();
+  const { enabled, lists, allowlist, guards } = await BLK.getSettings();
   // Skip the (slow) re-registration when nothing that affects scripts changed.
-  const sig = JSON.stringify([enabled, lists, allowlist, api.runtime.getManifest().version]);
+  const sig = JSON.stringify([enabled, lists, allowlist, guards.clickfix, api.runtime.getManifest().version]);
   const existing = await api.scripting.getRegisteredContentScripts();
   const { scriptsSig } = await api.storage.session.get("scriptsSig");
   if (scriptsSig === sig && (existing.length > 0) === enabled) return;
@@ -96,8 +89,9 @@ async function registerScripts() {
   if (!enabled) return;
 
   const exclude = excludesFor(allowlist);
+  const mainJs = guards.clickfix ? ["src/content/main-world.js"] : ["src/content/flags-clickfix-off.js", "src/content/main-world.js"];
   const scripts = [{
-    id: ID.main, js: ["src/content/main-world.js"], matches: ["<all_urls>"], excludeMatches: exclude,
+    id: ID.main, js: mainJs, matches: ["<all_urls>"], excludeMatches: exclude,
     runAt: "document_start", allFrames: true, world: "MAIN",
   }];
 
@@ -408,6 +402,48 @@ async function proceed(tabId, url) {
   return true;
 }
 
+/* ---------------- official websites (Wikidata) ---------------- */
+
+// Asked only for login pages whose title names an organisation we don't know; sends just
+// that name to Wikidata. Results are cached locally for 30 days.
+async function officialSite(name) {
+  const clean = String(name || "").trim().slice(0, 60);
+  if (clean.length < 2) return [];
+  const key = clean.toLowerCase();
+  const cache = await BLK.getLocal("wdCache", {});
+  if (cache[key] && Date.now() - cache[key].t < 30 * 864e5) return cache[key].d;
+  const headers = { "Api-User-Agent": `Blockify/${api.runtime.getManifest().version} (https://github.com/r00tmebaby/blockify)` };
+  let domains = [];
+  try {
+    const search = await fetch(`https://www.wikidata.org/w/api.php?action=wbsearchentities&format=json&language=en&type=item&limit=10&search=${encodeURIComponent(clean)}`, { headers }).then((r) => r.json());
+    // Exact label/alias matches only ("Acme" must not resolve to "Acme Brick Company"),
+    // ranked so organisations win over games, films, people and places with the same name.
+    const ORG = /\b(bank|banking|company|corporation|business|service|services|website|platform|organi[sz]ation|brand|retailer|financial|fintech|provider|app|airline|insurer|insurance|telecom|operator|marketplace|exchange|payment|carrier|courier|agency|government|store|shop|network|software|subsidiary|conglomerate)\b/i;
+    const NOT_ORG = /\b(family name|given name|surname|video game|film|album|song|single|novel|episode|television series|village|town|parish|municipality|commune|river|mountain|species|genus|painting|character|human|footballer|musician|band)\b/i;
+    const candidates = (search.search || [])
+      .filter((s) => s.match && String(s.match.text).toLowerCase() === key && !NOT_ORG.test(s.description || ""))
+      .sort((a, b) => ORG.test(b.description || "") - ORG.test(a.description || ""))
+      .slice(0, 5);
+    if (candidates.length) {
+      const ids = candidates.map((c) => c.id).join("|");
+      const ent = await fetch(`https://www.wikidata.org/w/api.php?action=wbgetentities&format=json&props=claims&ids=${ids}`, { headers }).then((r) => r.json());
+      for (const c of candidates) {
+        const claims = (ent.entities && ent.entities[c.id] && ent.entities[c.id].claims && ent.entities[c.id].claims.P856) || [];
+        domains = [...new Set(claims.map((x) => x.mainsnak && x.mainsnak.datavalue && x.mainsnak.datavalue.value)
+          .map((u) => BLK.hostFromUrl(u)).filter(Boolean).map((h) => BLK.baseDomain(h)))];
+        if (domains.length) break;
+      }
+    }
+  } catch {
+    return []; // offline or rate-limited: no opinion
+  }
+  cache[key] = { d: domains, t: Date.now() };
+  const keys = Object.keys(cache);
+  if (keys.length > 500) for (const k of keys.slice(0, keys.length - 500)) delete cache[k];
+  await api.storage.local.set({ wdCache: cache });
+  return domains;
+}
+
 /* ---------------- events ---------------- */
 
 api.runtime.onInstalled.addListener(async ({ reason }) => {
@@ -427,7 +463,7 @@ api.runtime.onStartup.addListener(() => {
 });
 
 api.storage.onChanged.addListener((changes, area) => {
-  if (area === "sync" && (changes.enabled || changes.lists || changes.ads || changes.allowlist || changes.blocklist)) {
+  if (area === "sync" && (changes.enabled || changes.lists || changes.ads || changes.allowlist || changes.blocklist || changes.guards)) {
     applySettings();
   }
   if (area === "local" && changes.learnedNetworks) {
@@ -479,6 +515,17 @@ api.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     case "proceed":
       if (!sender.tab || fromPage) return false;
       return reply(proceed(sender.tab.id, msg.url));
+    case "officialSite":
+      if (!fromPage) return false;
+      return reply(officialSite(msg.name));
+    case "closeTab":
+      if (!sender.tab) return false;
+      return reply(api.tabs.remove(sender.tab.id));
+    case "warn":
+      // A frame (maybe an iframe) detected something; show the warning in the top frame.
+      if (!fromPage || typeof msg.kind !== "string") return false;
+      api.tabs.sendMessage(sender.tab.id, { cmd: "showWarning", kind: msg.kind }, { frameId: 0 }).catch(() => {});
+      return false;
     default:
       return false;
   }
@@ -522,4 +569,4 @@ api.tabs.onRemoved.addListener((tabId) => {
 });
 
 // Expose for tests/debugging in the service worker console.
-globalThis.blockify = { applySettings, cosmeticFor, learn, getMeta };
+globalThis.blockify = { applySettings, cosmeticFor, learn, getMeta, officialSite };

@@ -27,10 +27,39 @@
     else if (active) send(kind);
   });
 
+  // Warnings raised in the page context (e.g. fake-CAPTCHA clipboard trick), possibly in an
+  // iframe: route through the background so the top frame shows them.
+  document.addEventListener("blockify:warn", (e) => message({ cmd: "warn", kind: String(e.detail) }));
+
+  const WARNINGS = {
+    clickfix: {
+      id: "clickfix",
+      level: "high",
+      title: "Stop! Don't paste anything",
+      lines: [
+        "This page secretly tried to copy a dangerous command. It wants you to press Windows + R (or open Terminal) and paste it. That would install a virus.",
+        "Real websites never ask you to do this. Blockify replaced the command with a harmless message.",
+      ],
+      actions: [
+        { label: "Close this page", kind: "primary", run: () => message({ cmd: "closeTab" }) },
+        { label: "OK, I won't paste anything", kind: "secondary" },
+      ],
+    },
+  };
+  if (isTop) {
+    api.runtime.onMessage.addListener((msg) => {
+      if (msg && msg.cmd === "showWarning" && WARNINGS[msg.kind]) BlkWarn.show(WARNINGS[msg.kind]);
+    });
+  }
+
   BLK.getSettings().then(async (settings) => {
     active = settings.enabled && !!host && !BLK.isAllowlisted(host, settings.allowlist);
     queued.splice(0).forEach((k) => active && send(k));
     if (!active || !isTop) return;
+
+    if (Object.values(settings.guards).some(Boolean)) {
+      BlkGuard.start({ host: host.toLowerCase(), settings, send, message, warn: BlkWarn.show });
+    }
 
     // Background injects CSS (site hiding, learned + user-hidden elements) and returns
     // the procedural filters that need JavaScript.

@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "__MSG_extName__",
   "short_name": "Blockify",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "__MSG_extDescription__",
   "default_locale": "en",
   "minimum_chrome_version": "116",
@@ -21,7 +21,7 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["src/common.js", "src/content/procedural.js", "src/content/smart.js", "src/content/isolated.js"],
+      "js": ["src/common.js", "src/content/procedural.js", "src/content/smart.js", "src/content/warn-ui.js", "src/content/guard.js", "src/content/isolated.js"],
       "run_at": "document_start",
       "all_frames": true
     }

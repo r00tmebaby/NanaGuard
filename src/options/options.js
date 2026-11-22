@@ -33,7 +33,7 @@
   let meta = null;
 
   async function render() {
-    const { enabled, lists, smart, allowlist, blocklist, smartOff } = await BLK.getSettings();
+    const { enabled, lists, smart, allowlist, blocklist, smartOff, guards, trusted } = await BLK.getSettings();
     const stats = await BLK.getLocal("stats", {});
     const hidden = await BLK.getLocal("hidden", {});
     const networks = await BLK.getLocal("learnedNetworks", {});
@@ -66,6 +66,26 @@
             el("div", { className: "muted small", textContent: counts })),
           el("label", { className: "switch" }, input, el("span")));
       })
+    );
+
+    /* scam & fraud guards */
+    $("guards").replaceChildren(
+      ...Object.entries(BLK.GUARD_INFO).map(([key, info]) => {
+        const input = el("input", { type: "checkbox", checked: guards[key], ariaLabel: info.title });
+        input.addEventListener("change", () => BLK.setGuard(key, input.checked));
+        return el("div", { className: "list-row" },
+          el("div", {}, el("b", { textContent: info.title }), el("div", { className: "muted small", textContent: info.desc })),
+          el("label", { className: "switch" }, input, el("span")));
+      })
+    );
+    $("trustedEmpty").hidden = trusted.length > 0;
+    $("trusted").replaceChildren(
+      ...trusted.map((d) =>
+        chip(d, "Remove", async () => {
+          const s = await BLK.getSettings();
+          await api.storage.sync.set({ trusted: s.trusted.filter((x) => x !== d) });
+        })
+      )
     );
 
     /* smart */
@@ -215,11 +235,12 @@
 
   /* ---------- backup ---------- */
   $("export").addEventListener("click", async () => {
-    const { allowlist, blocklist, lists, smart, smartOff } = await BLK.getSettings();
+    const { allowlist, blocklist, lists, smart, smartOff, guards, trusted } = await BLK.getSettings();
     const hidden = await BLK.getLocal("hidden", {});
     const learnedSites = await BLK.getLocal("learnedSites", {});
     const learnedNetworks = await BLK.getLocal("learnedNetworks", {});
-    const data = { blockify: 1, allowlist, blocklist, lists, smart, smartOff, hidden, learnedSites, learnedNetworks };
+    // Password fingerprints are deliberately NOT exported.
+    const data = { blockify: 1, allowlist, blocklist, lists, smart, smartOff, guards, trusted, hidden, learnedSites, learnedNetworks };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     const a = el("a", { href: URL.createObjectURL(blob), download: "blockify-backup.json" });
     a.click();
@@ -257,7 +278,8 @@
       for (const c of BLK.CATEGORIES) lists[c] = data.lists ? data.lists[c] !== false : true;
       await api.storage.sync.set({
         allowlist: clean(data.allowlist), blocklist: clean(data.blocklist), smartOff: clean(data.smartOff),
-        lists, smart: data.smart !== false,
+        trusted: clean(data.trusted), lists, smart: data.smart !== false,
+        guards: Object.fromEntries(Object.keys(BLK.GUARD_INFO).map((g) => [g, !data.guards || data.guards[g] !== false])),
       });
       await api.storage.local.set({ hidden: selectorMap(data.hidden), learnedSites: selectorMap(data.learnedSites), learnedNetworks: networks });
       await apply();
