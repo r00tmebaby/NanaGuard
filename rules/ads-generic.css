@@ -9751,7 +9751,6 @@
 .goads{display:none!important}
 .googads{display:none!important}
 .google-2ad-m{display:none!important}
-.google-ad{display:none!important}
 .google-ad-160-600{display:none!important}
 .google-ad-468-60{display:none!important}
 .google-ad-728-90{display:none!important}
@@ -13011,7 +13010,6 @@ a[href^="https://www.purevpn.com/"][href*="&utm_source=aff-"]{display:none!impor
 .add-box-top{display:none!important}
 .partner-loading-shown.partner-label{display:none!important}
 div[id*="MarketGid"]{display:none!important}
-div[id*="ScriptRoot"]{display:none!important}
 #ezmob_footer{display:none!important}
 .rec-sponsored{display:none!important}
 .rec_article_footer{display:none!important}
@@ -13430,7 +13428,6 @@ div[style^="z-index: 999999; background-image: url(\"data:image/gif;base64,"][st
 #weatherad:not(:empty){display:none!important}
 a[onclick="openAuc();"]{display:none!important}
 [href="https://t.me/Russia_Vs_Ukraine_War3"]{display:none!important}
-.ad-placeholder:not(#detect, #detect_ad_empire, #filter_ads_by_classname, .adsbox){display:none!important}
 div[style="position: fixed; display: block; width: 100%; height: 100%; inset: 0px; background-color: rgba(0, 0, 0, 0); z-index: 300000;"]{display:none!important}
 .ads-iframe:not([style="position: absolute; left: -10px; top: -10px;"]){display:none!important}
 [style^="position: fixed; inset: 0px; z-index: 2147483647; background-color: transparent; pointer-events: auto; cursor: auto; margin: 0px; padding: 0px; display: block;"]{display:none!important}

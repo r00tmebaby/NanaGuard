@@ -62,6 +62,14 @@ const MODAL = (body, delay) => `<!doctype html><title>News</title><style>
 PAGES["/nag"] = MODAL(`<b>CYBER SALE</b><p><s>$89</s> $49.99 For Your First Year</p><p>Get trusted news, expert analysis, and more—for less than $1/week.</p><button>Redeem Offer</button><button id=no>No Thanks</button>`, 800);
 PAGES["/nag-x"] = MODAL(`<button aria-label=Close>×</button><h2>Subscribe to our newsletter</h2><p>Unlimited access for £1/week. Don't miss out!</p><input placeholder=Email><button>Sign up</button>`, 800);
 PAGES["/nag-user"] = MODAL(`<h2>Subscribe</h2><p>Unlimited access for $1/week. Special offer!</p><button id=no>No Thanks</button>`, 0);
+// Popunder on a normal link click: the link navigates, the handler opens an ad site in a new tab.
+PAGES["/link-popunder"] = `<!doctype html><title>Videos</title><a id="vid" href="/plain" style="display:block;padding:20px">Watch video</a>
+  <script>document.getElementById("vid").addEventListener("click", () => { window.open("http://ads-network.test:" + location.port + "/ad"); });</script>`;
+// Tab-under: the click opens the wanted page in a new tab and turns this tab into an ad.
+PAGES["/tab-under"] = `<!doctype html><title>Videos</title><a id="vid" href="/plain?content" style="display:block;padding:20px">Watch video</a>
+  <script>document.getElementById("vid").addEventListener("click", (e) => { e.preventDefault();
+    window.open("/plain?content", "_blank"); setTimeout(() => { location.href = "http://ads-network.test:" + location.port + "/ad"; }, 200); });</script>`;
+PAGES["/ad"] = "<!doctype html><title>AD</title><h1>Hot singles in your area</h1>";
 const server = http.createServer((req, res) => {
   res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
   const page = PAGES[req.url.split("?")[0]];
@@ -400,6 +408,24 @@ try {
   await sleep(2500);
   check("popups: a box YOU opened stays open", await g.evaluate(() => !!document.getElementById("md")));
   await g.close();
+
+  /* --- popunders on link clicks / tab-unders --- */
+  const urls = async () => (await browser.pages()).map((p) => p.url());
+  g = await visit(`http://news-site.test:${port}/link-popunder`, 1000);
+  await g.click("#vid");
+  await sleep(2000);
+  const afterLink = await urls();
+  check("popunder: ad tab NOT opened when clicking a normal link", !afterLink.some((u) => u.includes("ads-network.test")), afterLink.filter((u) => u.startsWith("http")).join(" | "));
+  check("popunder: the link itself still works", g.url().endsWith("/plain"), g.url());
+  await g.close();
+
+  g = await visit(`http://news-site.test:${port}/tab-under`, 1000);
+  await g.click("#vid");
+  await sleep(3500);
+  const afterTabUnder = await urls();
+  check("tab-under: ad tab closed", !afterTabUnder.some((u) => u.includes("ads-network.test")), afterTabUnder.filter((u) => u.startsWith("http")).join(" | "));
+  check("tab-under: the real page is kept", afterTabUnder.some((u) => u.includes("news-site.test") && u.includes("/plain?content")));
+  for (const p of await browser.pages()) if (p.url().includes("news-site.test")) await p.close();
 
   /* --- AI / deepfake videos + fact checks --- */
   const ytTab = await visit(`http://docs.test:${port}/plain`, 500);

@@ -605,9 +605,16 @@ api.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
 // Popunders: a tab opened by another tab that lands on an ad host within seconds.
 const freshTabs = new Map(); // tabId -> { opener, at }
+const spawns = new Map(); // openerTabId -> { child, at, openerBase }
 
 api.tabs.onCreated.addListener((tab) => {
   if (tab.openerTabId !== undefined) freshTabs.set(tab.id, { opener: tab.openerTabId, at: Date.now() });
+  if (tab.openerTabId !== undefined) {
+    api.tabs.get(tab.openerTabId).then((o) => {
+      const h = BLK.hostFromUrl(o.url);
+      if (h) spawns.set(tab.openerTabId, { child: tab.id, at: Date.now(), openerBase: baseDomain(h) });
+    }).catch(() => {});
+  }
 });
 
 api.tabs.onUpdated.addListener(async (tabId, info) => {
@@ -635,8 +642,27 @@ api.tabs.onUpdated.addListener(async (tabId, info) => {
   record("tab", fresh.opener);
 });
 
+// Tab-under: the opener opened the real page in a new tab, then navigated itself to another site.
+api.tabs.onUpdated.addListener(async (tabId, info) => {
+  const s = spawns.get(tabId);
+  if (!s || !info.url) return;
+  if (Date.now() - s.at > 4000) { spawns.delete(tabId); return; }
+  const newHost = BLK.hostFromUrl(info.url);
+  if (!newHost || baseDomain(newHost) === s.openerBase) return; // same site: normal navigation
+  const child = await api.tabs.get(s.child).catch(() => null);
+  const childHost = child && BLK.hostFromUrl(child.pendingUrl || child.url);
+  if (!childHost || baseDomain(childHost) !== s.openerBase) return; // new tab isn't the site's own page
+  const { enabled, lists, allowlist } = await BLK.getSettings();
+  if (!enabled || !lists.ads || BLK.isAllowlisted(newHost, allowlist) || BLK.isAllowlisted(childHost, allowlist)) return;
+  spawns.delete(tabId);
+  await api.tabs.update(child.id, { active: true }).catch(() => {});
+  await api.tabs.remove(tabId).catch(() => {});
+  record("tab", child.id);
+});
+
 api.tabs.onRemoved.addListener((tabId) => {
   freshTabs.delete(tabId);
+  spawns.delete(tabId);
   serialize(() => api.storage.session.remove(`tab:${tabId}`));
 });
 

@@ -2,6 +2,11 @@
 
 All notable changes to KinGuard. Filter-list refreshes published by the weekly CI job bump the patch version and are not listed individually.
 
+## 2.5.0
+- **Popunders on link clicks blocked:** clicking a normal link no longer lets the page open an ad site in a new tab as well. The link itself works as usual.
+- **Tab-unders fixed:** when a site opens the page you wanted in a new tab and turns your current tab into an ad, KinGuard closes the ad tab and switches you to the real page.
+- **Site-family filter rules:** uBlock rules written for every version of a site (`youporn.*`, `pornhub.*`, …) are now used instead of skipped. Fixes for ~18,000 more sites, including anti-adblock detectors ("ADBLOCK DETECTED" messages).
+
 ## 2.4.4
 - Name is now written **KinGuard** everywhere; repository renamed to `r00tmebaby/KinGuard` and tagged with topics so it is easier to find.
 

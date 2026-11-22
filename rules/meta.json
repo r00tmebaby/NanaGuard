@@ -1,11 +1,11 @@
 {
-  "generated": "2026-11-22T18:51:33.783Z",
+  "generated": "2026-11-22T19:49:14.839Z",
   "sources": [
     {
       "id": "easylist",
       "cat": "ads",
       "title": "EasyList",
-      "version": "202611221841",
+      "version": "202611221946",
       "ok": true
     },
     {
@@ -40,7 +40,7 @@
       "id": "easyprivacy",
       "cat": "privacy",
       "title": "EasyPrivacy",
-      "version": "202611221841",
+      "version": "202611221946",
       "ok": true
     },
     {
@@ -88,25 +88,25 @@
   ],
   "categories": {
     "ads": {
-      "networkRules": 9083,
-      "firstBlockId": 2417,
-      "firstParamId": 9044,
-      "genericSelectors": 13500,
-      "siteSelectors": 16595,
-      "proceduralSelectors": 691,
-      "scriptletHosts": 21463,
-      "scriptletCalls": 28642,
-      "popupHosts": 2801
+      "networkRules": 9271,
+      "firstBlockId": 2459,
+      "firstParamId": 9232,
+      "genericSelectors": 13497,
+      "siteSelectors": 17758,
+      "proceduralSelectors": 758,
+      "scriptletHosts": 39860,
+      "scriptletCalls": 69395,
+      "popupHosts": 2802
     },
     "privacy": {
-      "networkRules": 10168,
+      "networkRules": 10172,
       "firstBlockId": 844,
-      "firstParamId": 10140,
+      "firstParamId": 10142,
       "genericSelectors": 4,
-      "siteSelectors": 17,
-      "proceduralSelectors": 8,
-      "scriptletHosts": 1110,
-      "scriptletCalls": 3030
+      "siteSelectors": 18,
+      "proceduralSelectors": 9,
+      "scriptletHosts": 1206,
+      "scriptletCalls": 3342
     },
     "security": {
       "networkRules": 40,
@@ -120,19 +120,19 @@
       "dangerousHosts": 18560
     },
     "annoyances": {
-      "networkRules": 3398,
+      "networkRules": 3399,
       "firstBlockId": 561,
-      "firstParamId": 3398,
+      "firstParamId": 3399,
       "genericSelectors": 26950,
-      "siteSelectors": 29480,
-      "proceduralSelectors": 582,
-      "scriptletHosts": 6859,
-      "scriptletCalls": 8843
+      "siteSelectors": 29577,
+      "proceduralSelectors": 585,
+      "scriptletHosts": 8674,
+      "scriptletCalls": 11767
     }
   },
   "skipped": {
-    "skippedNetwork": 1962,
-    "skippedCosmetic": 3112,
-    "skippedScriptlets": 959
+    "skippedNetwork": 1764,
+    "skippedCosmetic": 378,
+    "skippedScriptlets": 986
   }
 }

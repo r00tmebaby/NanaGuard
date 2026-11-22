@@ -94,6 +94,8 @@ async function loadList(url, depth = 0) {
 const DOMAIN_RE = /^(?:[a-z0-9_](?:[a-z0-9_-]{0,61}[a-z0-9])?\.)+[a-z0-9-]{2,63}$/;
 const IP_RE = /^\d{1,3}(\.\d{1,3}){3}$/;
 const validHost = (d) => DOMAIN_RE.test(d) || IP_RE.test(d);
+const ENTITY_TLDS = ["com", "net", "org", "de", "fr", "es", "it", "nl", "co.uk", "pl", "ru", "com.br"];
+const ENTITY_RE = /^([a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*)\.\*$/;
 const ASCII = /^[\x20-\x7e]+$/;
 
 function parseDomains(list, sep) {
@@ -105,10 +107,12 @@ function parseDomains(list, sep) {
     if (!d) continue;
     const neg = d.startsWith("~");
     if (neg) d = d.slice(1);
-    if (!validHost(d)) { dropped++; continue; } // entity (example.*) or regex domains
+    const ent = d.match(ENTITY_RE);
+    if (ent) { for (const tld of ENTITY_TLDS) { const h = ent[1] + "." + tld; if (validHost(h)) (neg ? exclude : include).push(h); } continue; }
+    if (!validHost(d)) { dropped++; continue; } // regex domains and other invalid entries
     (neg ? exclude : include).push(d);
   }
-  return { include, exclude, dropped };
+  return { include: [...new Set(include)], exclude: [...new Set(exclude)], dropped };
 }
 
 const TYPE_MAP = {

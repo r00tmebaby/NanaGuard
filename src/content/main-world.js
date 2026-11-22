@@ -1,4 +1,4 @@
-/* Runs inside the page's own JavaScript context (MAIN world) before any page
+﻿/* Runs inside the page's own JavaScript context (MAIN world) before any page
  * script. Neutralises the APIs that ad networks and scam pages abuse.
  * Registered dynamically by background.js, so allowlisted sites never get it. */
 (() => {
@@ -33,13 +33,13 @@
   try { delete window.__kinguardFlags; } catch { /* ignore */ }
 
   /* ---------- fake "verify you're human" (ClickFix) clipboard guard ---------- */
-  // A command interpreter / LOLBin in the copied text…
+  // A command interpreter / LOLBin in the copied textâ€¦
   const CMD = /\b(powershell|pwsh)(\.exe)?\b|\bmshta(\.exe)?\b|\bcmd(\.exe)?\s+\/[ck]\b|\b(rundll32|regsvr32|wscript|cscript|bitsadmin|certutil|msiexec|conhost|forfiles|wmic|finger)(\.exe)?\b|\b(curl|wget)\b[^\n]*\|\s*(sudo\s+)?(ba|z)?sh\b|\bosascript\b|\bbase64\s+(-d|--decode)\b|\/bin\/(ba|z)?sh\s+-c\b/i;
-  // …that downloads/hides/executes something…
+  // â€¦that downloads/hides/executes somethingâ€¦
   const STRONG = /(-w(indowstyle)?\s+h(idden)?|-e(nc(odedcommand)?)?\s+[A-Za-z0-9+/=]{20,}|\biex\b|invoke-expression|downloadstring|downloadfile|frombase64string|invoke-webrequest|\biwr\b|\birm\b|start-process|mshta\s+["']?https?:|\|\s*(ba|z)?sh\b|-urlcache|https?:\/\/\S+\.(hta|ps1|vbs|bat|cmd|msi|exe|zip|dll)\b)/i;
-  // …disguised as a human check, or on a page telling you to open Run/Terminal and paste.
-  const BAIT = /(captcha|i am not a robot|i'?m not a robot|not a robot|i am human|verif(y|ication)|cloudflare|ray id|✅|✔)/i;
-  const PAGE_BAIT = /(win(dows)?\s*(key)?\s*(\+|and)\s*r\b|⊞\s*\+?\s*r\b|press\s+(the\s+)?windows\s+(key|button)|run dialog|ctrl\s*\+\s*v|cmd\s*\+\s*v|command\s*\+\s*v|paste\b.{0,30}\b(terminal|run box|run window|command))/i;
+  // â€¦disguised as a human check, or on a page telling you to open Run/Terminal and paste.
+  const BAIT = /(captcha|i am not a robot|i'?m not a robot|not a robot|i am human|verif(y|ication)|cloudflare|ray id|âœ…|âœ”)/i;
+  const PAGE_BAIT = /(win(dows)?\s*(key)?\s*(\+|and)\s*r\b|âŠž\s*\+?\s*r\b|press\s+(the\s+)?windows\s+(key|button)|run dialog|ctrl\s*\+\s*v|cmd\s*\+\s*v|command\s*\+\s*v|paste\b.{0,30}\b(terminal|run box|run window|command))/i;
   const SAFE_TEXT = "STOP! KinGuard blocked a dangerous command from a website. Do not paste anything a website tells you to. Close this window.";
   const pageBait = () => {
     for (const d of [document, (() => { try { return window.top.document; } catch { return null; } })()]) {
@@ -62,7 +62,7 @@
     "a[href],button,input,select,textarea,label,summary,option," +
     "[role=button],[role=link],[role=menuitem],[role=tab],[role=option],[contenteditable=true]";
   const GESTURE_MS = 1000;
-  const gesture = { at: -Infinity, kind: "", interactive: false, used: false };
+  const gesture = { at: -Infinity, kind: "", interactive: false, used: false, link: null };
 
   function isInteractive(target, win) {
     if (!target || typeof target.closest !== "function") return false;
@@ -84,12 +84,18 @@
     if (e.type === "click" && gesture.kind === "pointerdown" && t - gesture.at < GESTURE_MS) {
       gesture.at = t;
       gesture.interactive = gesture.interactive || isInteractive(target, win);
+      if (!gesture.link) {
+        const a = target && typeof target.closest === "function" ? target.closest("a[href]") : null;
+        gesture.link = a && !opensNewWindow(a) && typeof a.href === "string" ? a.href : null;
+      }
       return;
     }
     gesture.at = t;
     gesture.kind = e.type;
     gesture.used = false;
     gesture.interactive = e.type === "keydown" || isInteractive(target, win);
+    const a = target && typeof target.closest === "function" ? target.closest("a[href]") : null;
+    gesture.link = a && !opensNewWindow(a) && typeof a.href === "string" ? a.href : null;
   }
 
   /** One new window per genuine click on a real control. */
@@ -97,6 +103,20 @@
     if (now() - gesture.at > GESTURE_MS || !gesture.interactive || gesture.used) return false;
     gesture.used = true;
     return true;
+  }
+
+  const hostOf = (u, base) => { try { return new URL(String(u), base).hostname.replace(/^www\./, ""); } catch { return ""; } };
+  /** A same-tab link was clicked and the page tries to open a DIFFERENT site in a new window. */
+  function linkPopunder(url) {
+    try {
+      if (!gesture.link || now() - gesture.at > GESTURE_MS) return false;
+      const target = hostOf(url, location.href);
+      if (!target) return false;
+      if (String(url) && new URL(String(url), location.href).href === gesture.link) return false;
+      return target !== hostOf(gesture.link) && target !== location.hostname.replace(/^www\./, "");
+    } catch {
+      return false;
+    }
   }
 
   /** Recent genuine click on a real control. Does not consume the gesture. */
@@ -216,6 +236,10 @@
       function open(url, target) {
         const t = String(target == null ? "" : target).toLowerCase();
         if (t === "_self" || t === "_top" || t === "_parent") return orig.apply(this, arguments);
+        if (linkPopunder(url)) {
+          report("popup");
+          return null;
+        }
         if (allowNewWindow()) return orig.apply(this, arguments);
         report("popup");
         return null;
@@ -224,7 +248,7 @@
 
     const guardNav = (orig) =>
       function () {
-        if (opensNewWindow(this) && !allowNewWindow()) {
+        if (opensNewWindow(this) && (linkPopunder(this.href || this.action) || !allowNewWindow())) {
           report("popup");
           return undefined;
         }
@@ -238,7 +262,7 @@
       function dispatchEvent(ev) {
         if (
           ev && ev.type === "click" && this && this.nodeName === "A" &&
-          opensNewWindow(this) && !allowNewWindow()
+          opensNewWindow(this) && (linkPopunder(this.href || this.action) || !allowNewWindow())
         ) {
           report("popup");
           return false;
@@ -264,7 +288,7 @@
     );
 
     // Popunder scripts open windows through fresh about:blank iframes to get
-    // an unpatched window.open — patch child realms as soon as they appear.
+    // an unpatched window.open â€” patch child realms as soon as they appear.
     const hardenFrame = (el, getWin) => {
       try {
         if (el && (el.nodeName === "IFRAME" || el.nodeName === "FRAME")) harden(getWin(el));
