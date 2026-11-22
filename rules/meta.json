@@ -1,11 +1,11 @@
 {
-  "generated": "2026-11-22T18:39:58.455Z",
+  "generated": "2026-11-22T18:51:33.783Z",
   "sources": [
     {
       "id": "easylist",
       "cat": "ads",
       "title": "EasyList",
-      "version": "202611221834",
+      "version": "202611221841",
       "ok": true
     },
     {
@@ -40,7 +40,7 @@
       "id": "easyprivacy",
       "cat": "privacy",
       "title": "EasyPrivacy",
-      "version": "202611221834",
+      "version": "202611221841",
       "ok": true
     },
     {
@@ -94,8 +94,8 @@
       "genericSelectors": 13500,
       "siteSelectors": 16595,
       "proceduralSelectors": 691,
-      "scriptletHosts": 21589,
-      "scriptletCalls": 28771,
+      "scriptletHosts": 21463,
+      "scriptletCalls": 28642,
       "popupHosts": 2801
     },
     "privacy": {
@@ -131,8 +131,8 @@
     }
   },
   "skipped": {
-    "skippedNetwork": 1963,
+    "skippedNetwork": 1962,
     "skippedCosmetic": 3112,
-    "skippedScriptlets": 960
+    "skippedScriptlets": 959
   }
 }

@@ -46,8 +46,9 @@ var BlkProcedural = (() => {
     let quote = "";
     let chunkStart = 0;
     const pushCss = (text) => {
-      if (!text) return;
-      if (!tasks.length && !css) css = text;
+      const first = !tasks.length && !css;
+      if (!text.trim()) return;
+      if (first) css = text.trim();
       else tasks.push(["spath", text]);
     };
     while (i < s.length) {
@@ -67,7 +68,7 @@ var BlkProcedural = (() => {
           const arg = s.slice(open + 1, end);
           // Native CSS :has()/:not() stay in the CSS part unless they contain procedural ops.
           if ((name === "has" || name === "not") && !hasProcedural(arg)) { i = end + 1; continue; }
-          pushCss(s.slice(chunkStart, i).trim());
+          pushCss(s.slice(chunkStart, i).trimEnd());
           if (ACTIONS.has(name)) action = [name, arg];
           else if (name === "has" || name === "if") tasks.push(["has", compile(arg.trim().replace(/^>/, ":scope >"))]);
           else if (name === "not" || name === "if-not") tasks.push(["not", compile(arg)]);
@@ -79,7 +80,7 @@ var BlkProcedural = (() => {
       }
       i++;
     }
-    pushCss(s.slice(chunkStart).trim());
+    pushCss(s.slice(chunkStart).trimEnd());
     if (!css && !tasks.length) return null;
     return { css: css || "*", tasks, action };
   }
@@ -169,7 +170,12 @@ var BlkProcedural = (() => {
         const i = arg.indexOf(":");
         if (i < 0) return [];
         const prop = arg.slice(0, i).trim();
-        const re = toRegex(arg.slice(i + 1).trim().replace(/^\^?/, "^").replace(/(?<!\$)$/, "$").replace(/^\^\/(.*)\/\$$/, "/$1/"));
+        const raw = arg.slice(i + 1).trim();
+        let re = null;
+        if (/^\/.+\/[imsu]*$/.test(raw)) re = toRegex(raw);
+        else {
+          try { re = new RegExp("^" + raw.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*") + "$"); } catch { re = null; }
+        }
         return re ? nodes.filter((n) => re.test(getComputedStyle(n, pseudo).getPropertyValue(prop))) : [];
       }
       case "matches-path": {
@@ -212,7 +218,9 @@ var BlkProcedural = (() => {
     if (!compiled.length) return () => 0;
     const done = new WeakSet();
     let hits = 0;
+    let lastCost = 0;
     const pass = () => {
+      const t0 = performance.now();
       for (const c of compiled) {
         for (const el of run(c, [document])) {
           if (done.has(el) && !c.action) continue;
@@ -221,9 +229,10 @@ var BlkProcedural = (() => {
           hits++;
         }
       }
+      lastCost = performance.now() - t0;
     };
     let timer = 0;
-    const schedule = () => { if (!timer) timer = setTimeout(() => { timer = 0; pass(); }, 300); };
+    const schedule = () => { if (!timer) timer = setTimeout(() => { timer = 0; pass(); }, Math.max(300, Math.min(5000, lastCost * 10))); };
     const begin = () => {
       pass();
       new MutationObserver(schedule).observe(document.documentElement, { childList: true, subtree: true });

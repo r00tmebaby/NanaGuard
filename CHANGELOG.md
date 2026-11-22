@@ -2,6 +2,20 @@
 
 All notable changes to Kinguard. Filter-list refreshes published by the weekly CI job bump the patch version and are not listed individually.
 
+## 2.4.1
+Hardening pass by the agent team (2 senior reviewers, 10 file-scoped fixes, each reviewed).
+- Fewer false alarms: no "fake Binance" on `finance.*` logins, no "fake Microsoft" on company Outlook webmail or `*.co.uk` subdomains, higher bar for scam banners on shop checkout pages.
+- Navigation in the same tab (`window.open(url, "_self")`, used by bank/payment redirects) is no longer blocked. Fullscreen works after a real click (galleries, readers).
+- "Unsaved changes" prompts are kept when you typed in webmail/editor iframes or pasted text.
+- The fake-virus-screen remover no longer removes whole legitimate pages.
+- Smart learning never learns shared CDNs/hosting as ad networks.
+- Warning page no longer breaks on URLs containing `%`.
+- Password alert: fixed a first-run race that could make it miss reused passwords.
+- Procedural filters: `:matches-css()` works, descendant selectors are kept, re-runs are bounded.
+- YouTube: no repeated scans of multi-MB page scripts; news videos *about* scams aren't flagged.
+- Filter compiler: aborts instead of overwriting rules when a list download fails; fixed `$`-pattern corruption in site-fix bundles.
+- Settings page: no render races; site lists capped at 300 entries to fit browser sync limits.
+
 ## 2.4.0
 - Renamed to **Kinguard** (previously Blockify / Hush).
 - "Check facts" buttons now have icons and sit in one row, ordered Google, ChatGPT, News, Fact-check.

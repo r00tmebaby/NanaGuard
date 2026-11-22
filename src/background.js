@@ -27,6 +27,13 @@ const SAFE_NETWORKS = [
   "cloudflare.com", "jsdelivr.net", "unpkg.com", "paypal.com", "stripe.com", "disqus.com", "apple.com", "microsoft.com",
   "live.com", "linkedin.com", "wikipedia.org", "wikimedia.org", "amazon.com", "openstreetmap.org", "reddit.com",
   "redditmedia.com", "pinterest.com", "github.com", "githubusercontent.com", "akamaihd.net", "cloudfront.net",
+  // Shared hosting / CDN / widget / payment providers: never learned as ad networks.
+  "amazonaws.com", "azureedge.net", "azurewebsites.net", "windows.net", "herokuapp.com", "github.io", "netlify.app",
+  "vercel.app", "pages.dev", "web.app", "firebaseapp.com", "workers.dev", "appspot.com", "blogspot.com", "wordpress.com",
+  "wp.com", "googletagmanager.com", "bootstrapcdn.com", "fontawesome.com", "typekit.net", "jquery.com", "adyen.com",
+  "klarna.com", "braintreegateway.com", "worldpay.com", "zendesk.com", "zdassets.com", "intercom.io", "trustpilot.com",
+  "bing.com", "yahoo.com", "office.com", "sharepoint.com", "salesforce.com", "shopify.com", "myshopify.com",
+  "squarespace.com", "wixstatic.com", "typeform.com",
 ];
 const LEARN_THRESHOLD = 3; // distinct sites before a network is blocked everywhere
 
@@ -279,6 +286,7 @@ function learn(tab, selector, networks) {
         entry.blocked = true;
         entry.blockedAt = Date.now();
         newlyBlocked = true;
+        changed = true;
       }
       nets[d] = entry;
     }
@@ -449,7 +457,10 @@ async function officialSite(name) {
 const menus = api.contextMenus || api.menus;
 const MENU_CONTEXTS = ["selection", "page", "link", "video", "image"];
 
-async function updateMenus() {
+// Rebuilds run one after another so overlapping calls cannot interleave removeAll/create.
+let menuChain = Promise.resolve();
+
+async function rebuildMenus() {
   if (!menus) return;
   await menus.removeAll();
   const { enabled, guards } = await BLK.getSettings();
@@ -458,6 +469,10 @@ async function updateMenus() {
   for (const [engine, title] of Object.entries(BLK.FACT_ENGINES)) {
     menus.create({ id: `blk-${engine}`, parentId: "blk", title, contexts: MENU_CONTEXTS });
   }
+}
+
+async function updateMenus() {
+  return (menuChain = menuChain.then(rebuildMenus).catch((e) => console.error("Kinguard menus:", e)));
 }
 
 function openCheck(engine, text, pageUrl, tab) {

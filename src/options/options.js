@@ -31,15 +31,20 @@
       el("button", { className: "btn", textContent: label, onclick: onRemove, ariaLabel: `${label} ${text}` }));
 
   let meta = null;
+  let renderGen = 0;
 
   async function render() {
+    const gen = ++renderGen;
     const { enabled, lists, smart, allowlist, blocklist, smartOff, guards, trusted } = await BLK.getSettings();
     const stats = await BLK.getLocal("stats", {});
     const hidden = await BLK.getLocal("hidden", {});
     const networks = await BLK.getLocal("learnedNetworks", {});
     const learnedSites = await BLK.getLocal("learnedSites", {});
+    if (gen !== renderGen) return;
 
-    $("perm").hidden = await api.permissions.contains(ALL_SITES);
+    const hasPerm = await api.permissions.contains(ALL_SITES);
+    if (gen !== renderGen) return;
+    $("perm").hidden = hasPerm;
     $("global").checked = enabled;
     $("smart").checked = smart;
 
@@ -289,6 +294,7 @@
     }
   });
 
-  api.storage.onChanged.addListener(render);
+  let t;
+  api.storage.onChanged.addListener(() => { clearTimeout(t); t = setTimeout(render, 250); });
   render();
 })();

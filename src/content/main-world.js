@@ -99,6 +99,11 @@
     return true;
   }
 
+  /** Recent genuine click on a real control. Does not consume the gesture. */
+  function recentRealClick() {
+    return now() - gesture.at <= GESTURE_MS && gesture.interactive;
+  }
+
   function opensNewWindow(el) {
     let t = el.getAttribute && el.getAttribute("target");
     if (t == null) {
@@ -144,6 +149,9 @@
   /* ---------- realm hardening ---------- */
 
   const hardened = new WeakSet();
+
+  // Set by real user input/edits in any realm (see harden); read by the beforeunload guard.
+  let typed = false;
 
   function harden(W) {
     try {
@@ -198,9 +206,16 @@
       W.addEventListener(type, (e) => onGesture(e, W), true);
     }
 
+    // Real typing / edits (including inside same-origin iframes) mark the page as having unsaved work.
+    for (const type of ["input", "change", "paste", "drop"]) {
+      W.addEventListener(type, (e) => { if (e.isTrusted) typed = true; }, true);
+    }
+
     /* Popups ------------------------------------------------------------ */
     wrap(W, "open", (orig) =>
-      function open() {
+      function open(url, target) {
+        const t = String(target == null ? "" : target).toLowerCase();
+        if (t === "_self" || t === "_top" || t === "_parent") return orig.apply(this, arguments);
         if (allowNewWindow()) return orig.apply(this, arguments);
         report("popup");
         return null;
@@ -352,7 +367,7 @@
       (el.matches("video,canvas") || !!el.querySelector("video,canvas"));
     wrap(W.Element.prototype, "requestFullscreen", (orig) =>
       function requestFullscreen() {
-        if (isMedia(this)) return orig.apply(this, arguments);
+        if (isMedia(this) || recentRealClick()) return orig.apply(this, arguments);
         report("fullscreen");
         return blockedPromise("Fullscreen blocked by Kinguard");
       }
@@ -360,7 +375,7 @@
     for (const key of ["webkitRequestFullscreen", "webkitRequestFullScreen", "mozRequestFullScreen"]) {
       wrap(W.Element.prototype, key, (orig) =>
         function () {
-          if (isMedia(this)) return orig.apply(this, arguments);
+          if (isMedia(this) || recentRealClick()) return orig.apply(this, arguments);
           report("fullscreen");
           return undefined;
         }
@@ -453,7 +468,5 @@
   /* "Are you sure you want to leave?" traps: only honour them when the user
    * actually typed something on the page (real unsaved work). Registered first,
    * so stopImmediatePropagation silences every handler added by the page. */
-  let typed = false;
-  window.addEventListener("input", (e) => { if (e.isTrusted) typed = true; }, true);
   window.addEventListener("beforeunload", (e) => { if (!typed) e.stopImmediatePropagation(); }, true);
 })();

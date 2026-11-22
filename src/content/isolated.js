@@ -119,7 +119,11 @@
     }
     for (const el of found) {
       handled.add(el);
-      if (!isScamText((el.innerText || "").slice(0, 6000))) continue;
+      const txt = (el.innerText || "");
+      if (txt.length > 2500) continue;
+      if (el.querySelector("input:not([type=hidden]),textarea,select,form,main,article,nav,header,[role=main],[role=navigation]")) continue;
+      if (el.querySelectorAll("a[href]").length > 12) continue;
+      if (!isScamText(txt)) continue;
       el.remove();
       for (const root of [document.documentElement, document.body]) {
         if (getComputedStyle(root).overflow === "hidden") root.style.setProperty("overflow", "auto", "important");

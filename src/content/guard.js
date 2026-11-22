@@ -69,6 +69,8 @@ var BlkGuard = (() => {
     "pingone.com", "duosecurity.com", "force.com", "salesforce.com", "login.gov", "id.me", "my.site.com", "cloudflareaccess.com"];
   const RISKY_TLD = /\.(top|xyz|icu|buzz|click|link|rest|cyou|sbs|cfd|quest|online|site|website|support|help|cc|tk|ml|ga|cf|gq|pw|ws|monster|lol|mom|bond|live|info|biz|vip|shop|store|club|work|today|app)$/;
   const PHISH_WORDS = /^(login|log|signin|sign|secure|security|verify|verification|account|accounts|update|support|billing|wallet|auth|recovery|unlock|refund|confirm|service|services|help|id|online|web|portal|customer|alert|notice|center|centre|safe|protect|limited|suspended|resolution|appeal)$/;
+  // Real words that sit one letter away from a brand name; never a typo on their own.
+  const TYPO_IGNORE = new Set(["finance", "paypay", "barclay", "revolt"]);
 
   const baseOf = (h) => BLK.baseDomain(h);
   function isOfficial(host, brand) {
@@ -166,9 +168,11 @@ var BlkGuard = (() => {
         if (!tokenIn(rawParts, t, brand.common) && tokenIn(digitParts, t, brand.common)) return { brand, level: "high", why: "digits" };
         // One-letter typos (amazom, paypai) — real words like "finance"/"revolt" are close to
         // brands too, so a typo only counts together with another phishing sign.
-        const typo = t.length >= 6 && [label, ...rawParts].some((p) => p !== t && p.length >= 5 && editDistance1(p, t));
+        const typo = t.length >= 6 && [label, ...rawParts].some((p) => p !== t && p.length >= 5 && !TYPO_IGNORE.has(p) && editDistance1(p, t));
         if (typo && (hasPassword || keyword || riskyTld)) return { brand, level: "high", why: "typo" };
-        const deepSubdomain = host.split(".").length > 3; // paypal.com.account.verify.top
+        // Two or more labels above the registrable domain: paypal.com.account.verify.top,
+        // but not outlook.mycompany.co.uk.
+        const deepSubdomain = host.split(".").length - baseOf(host).split(".").length >= 2;
         if (tokenIn(rawParts, t, brand.common) && (keyword || riskyTld || deepSubdomain)) {
           return { brand, level: "medium", why: "brand-in-domain" };
         }
@@ -206,6 +210,7 @@ var BlkGuard = (() => {
       const key = name.toLowerCase().replace(/[^a-z0-9]/g, "");
       const brand = BRANDS.find((b) => b.tokens.includes(key) || b.name.toLowerCase() === name.toLowerCase());
       if (brand) {
+        if (host.split(".").some((p) => p === key)) return false; // outlook.company.com: analyzeHost handles look-alikes
         if (!isOfficial(host, brand)) return warnFake(ctx, brand.name, realSite(brand), "high");
         return false;
       }
@@ -290,14 +295,24 @@ var BlkGuard = (() => {
     const bytes = globalThis.crypto && crypto.subtle ? new Uint8Array(await crypto.subtle.digest("SHA-256", data)) : sha256(data);
     return [...bytes].slice(0, 12).map((b) => b.toString(16).padStart(2, "0")).join("");
   }
-  async function salt() {
-    let s = await BLK.getLocal("pwSalt", "");
-    if (!s) {
-      // crypto.getRandomValues works on http pages too (unlike crypto.subtle).
-      s = [...crypto.getRandomValues(new Uint8Array(16))].map((b) => b.toString(16).padStart(2, "0")).join("");
-      await api.storage.local.set({ pwSalt: s });
-    }
-    return s;
+  // Memoised so two concurrent first-time calls share one salt (otherwise the last write wins
+  // and the fingerprint saved with the discarded salt never matches again).
+  let saltPromise = null;
+  function salt() {
+    return saltPromise || (saltPromise = (async () => {
+      try {
+        let s = await BLK.getLocal("pwSalt", "");
+        if (!s) {
+          // crypto.getRandomValues works on http pages too (unlike crypto.subtle).
+          s = [...crypto.getRandomValues(new Uint8Array(16))].map((b) => b.toString(16).padStart(2, "0")).join("");
+          await api.storage.local.set({ pwSalt: s });
+        }
+        return s;
+      } catch (e) {
+        saltPromise = null;
+        throw e;
+      }
+    })());
   }
 
   function watchPasswords(ctx) {
@@ -400,7 +415,7 @@ var BlkGuard = (() => {
         /\b(return|send back|pay back|transfer back)\b.{0,40}\b(difference|extra|excess|amount)\b/i, /\b(any ?desk|team ?viewer|gift ?card|bitcoin|wire)\b/i],
     },
   ];
-  const SAFE_HOSTS = /(\.gov|\.gov\.uk|\.gov\.au|\.gc\.ca|\.edu|wikipedia\.org|bbb\.org|ftc\.gov|actionfraud\.police\.uk|ageuk\.org\.uk|aarp\.org)$/;
+  const SAFE_HOSTS = /(\.gov|\.gov\.uk|\.gov\.au|\.gc\.ca|\.edu|(^|\.)wikipedia\.org|(^|\.)bbb\.org|ftc\.gov|actionfraud\.police\.uk|(^|\.)ageuk\.org\.uk|(^|\.)aarp\.org)$/;
 
   function checkScams(ctx) {
     const { host, warn, send } = ctx;
@@ -408,6 +423,8 @@ var BlkGuard = (() => {
     const text = (document.body ? document.body.innerText : "").slice(0, 60000);
     if (!/\b(you|your)\b/i.test(text)) return;
     const articleLike = text.length > 15000 || document.querySelectorAll("article p, main p").length > 12;
+    // Shops mention gift cards, "today", "support" etc. in ordinary checkout text: need more evidence there.
+    const shop = !!document.querySelector('input[autocomplete^="cc-"],form[action*="cart" i],form[action*="checkout" i],[class*="add-to-cart" i],[id*="add-to-cart" i]');
     for (const scam of SCAMS) {
       if (!scam.needs.test(text)) continue;
       if (scam.official && scam.official.some((d) => host === d || host.endsWith("." + d))) continue;
@@ -416,7 +433,7 @@ var BlkGuard = (() => {
         if (!named.length || named.some((b) => isOfficial(host, b))) continue;
       }
       const score = scam.plus.filter((re) => re.test(text)).length;
-      if (score < (articleLike ? 3 : 2)) continue;
+      if (score < (articleLike || shop ? 3 : 2)) continue;
       send("scam");
       warn({
         id: "scam-" + scam.id,
@@ -444,9 +461,13 @@ var BlkGuard = (() => {
 
     let siteWarned = false;
     let scamRuns = 0;
+    let phishRuns = 0;
+    let mo = null;
     const run = async () => {
-      if (guards.phishing && !siteWarned) siteWarned = await checkSite(ctx);
+      if (guards.phishing && !siteWarned && phishRuns++ < 5) siteWarned = await checkSite(ctx);
       if (guards.scam && scamRuns++ < 5) checkScams(ctx);
+      // Stop watching the DOM once both guards are finished or capped.
+      if (mo && (!guards.phishing || siteWarned || phishRuns >= 5) && (!guards.scam || scamRuns >= 5)) mo.disconnect();
     };
     // Reading page text (innerText) forces layout, so wait until the page has fully loaded
     // and the browser is idle: never compete with the page's own first render.
@@ -455,7 +476,8 @@ var BlkGuard = (() => {
     const schedule = () => { if (!timer) timer = setTimeout(() => { timer = 0; idle(run); }, 1500); };
     const begin = () => {
       idle(run);
-      new MutationObserver(schedule).observe(document.documentElement, { childList: true, subtree: true });
+      mo = new MutationObserver(schedule);
+      mo.observe(document.documentElement, { childList: true, subtree: true });
     };
     if (document.readyState === "complete") begin();
     else addEventListener("load", begin, { once: true });

@@ -1,7 +1,7 @@
 "use strict";
 (async () => {
   const $ = (id) => document.getElementById(id);
-  const url = decodeURIComponent(location.hash.slice(1));
+  const url = location.hash.slice(1);
   const host = BLK.hostFromUrl(url);
   $("host").textContent = host || "";
 

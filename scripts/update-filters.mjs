@@ -388,6 +388,13 @@ const lists = await Promise.all(
   })
 );
 
+// Refuse to build from partial data: a failed list would silently drop protections.
+const failedLists = lists.filter((l) => l.failed);
+if (failedLists.length && !process.env.KINGUARD_ALLOW_PARTIAL) {
+  console.error("Aborting, lists failed to download: " + failedLists.map((l) => l.id).join(", ") + " (set KINGUARD_ALLOW_PARTIAL=1 to build anyway)");
+  process.exit(1);
+}
+
 // $badfilter disables the identical filter in any list.
 const badfilters = new Set();
 for (const { lines } of lists) {
@@ -641,7 +648,8 @@ for (const cat of CATEGORIES) {
   for (let i = 0; i < shardCount; i++) {
     if (!shards[i].hosts.length) continue;
     const file = `rules/scriptlets/${cat}-${i}.js`;
-    const bundle = runtime.replace("/*__BLK_DATA__*/null", JSON.stringify({ calls: shards[i].calls, off }));
+    const json = JSON.stringify({ calls: shards[i].calls, off });
+    const bundle = runtime.replace("/*__BLK_DATA__*/null", () => json);
     await writeFile(path.join(ROOT, file), bundle);
     shardIndex.push({ file, hosts: shards[i].hosts });
   }

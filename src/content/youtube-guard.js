@@ -35,6 +35,8 @@ var BlkYouTube = (() => {
     const text = `${title}\n${description.slice(0, 3000)}`;
     const celeb = CELEB.exec(text) || CELEB.exec(channel);
     if (!celeb) return { flagged: false, score: 0 };
+    // Anti-scam coverage (video is about the scam, not promoting it) is not flagged.
+    if (/\b(scam|scams|scammers?|fraud|fake|deepfake|beware|warning|debunk(ed)?|hoax|exposed)\b/i.test(title)) return { flagged: false, score: 0 };
     let score = 2;
     const kinds = {};
     for (const s of SIGNALS) {
@@ -64,7 +66,8 @@ var BlkYouTube = (() => {
     const channel = meta && meta.querySelector("ytd-channel-name") ? meta.querySelector("ytd-channel-name").textContent.trim() : "";
     const live = !!document.querySelector(".ytp-live-badge:not([disabled]), .ytp-live") || /\bLIVE\b/.test(title);
     // Label text: metadata area (incl. "How this content was made") + first-load page data. Not comments.
-    let labelText = meta ? meta.textContent : "";
+    let labelText = "";
+    if (meta) { const d = meta.querySelector("#description"); labelText = meta.textContent.replace(d ? d.textContent : "", ""); }
     const reel = document.querySelector("ytd-reel-video-renderer[is-active]");
     if (reel) labelText += reel.textContent;
     return { title, description, channel, live, labelText };
@@ -119,6 +122,8 @@ var BlkYouTube = (() => {
   function start({ settings, warn, send, message }) {
     const { guards } = settings;
     const done = new Set();
+    const memo = new Map();
+    const initCache = new Map();
     const pause = () => { const v = document.querySelector("#movie_player video"); if (v && !v.paused) v.pause(); };
 
     const check = () => {
@@ -128,6 +133,9 @@ var BlkYouTube = (() => {
       if (!id) return;
       const ctx = context();
       if (!ctx.title) return;
+      const key = id + "|" + ctx.title + "|" + ctx.channel + "|" + ctx.description.length + "|" + ctx.labelText.length + "|" + ctx.live;
+      if (memo.get(id) === key) return;
+      memo.set(id, key);
 
       if (!done.has("scam:" + id)) {
         const a = assess(ctx);
@@ -151,7 +159,7 @@ var BlkYouTube = (() => {
           });
         }
       }
-      if (!done.has("ai:" + id) && (hasAiLabel(ctx.labelText) || initialDataHasLabel(id))) {
+      if (!done.has("ai:" + id) && (hasAiLabel(ctx.labelText) || (initCache.has(id) ? initCache.get(id) : (initCache.set(id, initialDataHasLabel(id)), initCache.get(id))))) {
         done.add("ai:" + id);
         send("ailabel");
         warn({

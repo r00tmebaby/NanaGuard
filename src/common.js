@@ -7,7 +7,7 @@ var api = globalThis.browser ?? globalThis.chrome;
 // eslint-disable-next-line no-var
 var BLK = Object.freeze({
   NAME: "Kinguard",
-  MAX_LIST: 500,
+  MAX_LIST: 300,
   CATEGORIES: Object.freeze(["ads", "privacy", "security", "annoyances"]),
 
   CATEGORY_INFO: Object.freeze({
