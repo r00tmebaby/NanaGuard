@@ -33,6 +33,13 @@ h2 { font-size: 16px; margin-bottom: 4px; }
 .groups .list { display: grid; gap: 6px; }
 .groups code { font-size: 12px; color: var(--muted); }
 
+.small { font-size: 12px; }
+.lists { display: grid; gap: 10px; margin-top: 12px; }
+.list-row {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg);
+}
+.list-row b { display: block; }
 .meta { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; margin: 12px 0 0; font-size: 13px; }
 .meta dt { color: var(--muted); }
 .meta dd { margin: 0; font-variant-numeric: tabular-nums; }

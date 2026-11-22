@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Hush settings</title>
+  <title>Blockify settings</title>
   <link rel="stylesheet" href="../ui/ui.css">
   <link rel="stylesheet" href="options.css">
 </head>
@@ -12,19 +12,20 @@
     <header class="brand">
       <img src="../../icons/icon-48.png" width="40" height="40" alt="">
       <div>
-        <h1>Hush</h1>
+        <h1>Blockify</h1>
         <p class="muted">Ad, popup &amp; scam blocker</p>
       </div>
     </header>
 
     <div id="perm" class="banner" hidden>
-      <span><b>One more step:</b> allow Hush to run on websites, otherwise it can't block anything.</span>
+      <span><b>One more step:</b> allow Blockify to run on websites, otherwise it can't block anything.</span>
       <button id="grant" class="btn primary">Allow access</button>
     </div>
 
     <nav class="tabs" role="tablist">
       <button role="tab" data-tab="protection" aria-selected="true">Protection</button>
-      <button role="tab" data-tab="ads">Ads</button>
+      <button role="tab" data-tab="ads">Filters</button>
+      <button role="tab" data-tab="smart">Smart</button>
       <button role="tab" data-tab="sites">Sites</button>
       <button role="tab" data-tab="stats">Statistics</button>
     </nav>
@@ -35,7 +36,7 @@
         <div class="row">
           <div>
             <h2>Protection</h2>
-            <p class="muted">Turn Hush on or off everywhere.</p>
+            <p class="muted">Turn Blockify on or off everywhere.</p>
           </div>
           <label class="switch"><input type="checkbox" id="global" aria-label="Protection"><span></span></label>
         </div>
@@ -53,21 +54,53 @@
     <!-- Ads -->
     <section class="panel" data-panel="ads" hidden>
       <div class="card">
-        <div class="row">
-          <div>
-            <h2>Block ads &amp; banners</h2>
-            <p class="muted">Uses the community-maintained EasyList. It updates automatically with every Hush release.</p>
-          </div>
-          <label class="switch"><input type="checkbox" id="ads" aria-label="Block ads and banners"><span></span></label>
-        </div>
-        <dl class="meta" id="meta"></dl>
+        <h2>Filter lists</h2>
+        <p class="muted">Community-maintained lists, compiled into fast browser rules and refreshed every week with each Blockify release.</p>
+        <div id="lists" class="lists"></div>
+        <p class="muted small" id="listsUpdated"></p>
       </div>
 
       <div class="card">
         <h2>Hidden elements</h2>
         <p class="muted">Things you hid with <b>Hide an ad on this page</b>. Remove one to bring it back.</p>
         <div id="hidden" class="groups"></div>
-        <p id="hiddenEmpty" class="muted">Nothing hidden yet. Open a page, click the Hush icon, then <b>Hide an ad on this page</b>.</p>
+        <p id="hiddenEmpty" class="muted">Nothing hidden yet. Open a page, click the Blockify icon, then <b>Hide an ad on this page</b>.</p>
+      </div>
+    </section>
+
+    <!-- Smart -->
+    <section class="panel" data-panel="smart" hidden>
+      <div class="card">
+        <div class="row">
+          <div>
+            <h2>Smart ad detection</h2>
+            <p class="muted">Spots ads no list knows about, the way a person would: "Ad" and "Sponsored" labels, AdChoices icons, standard banner sizes, and boxes served by other companies. It learns as you browse.</p>
+          </div>
+          <label class="switch"><input type="checkbox" id="smart" aria-label="Smart ad detection"><span></span></label>
+        </div>
+        <ul class="features muted">
+          <li>Ads it finds on a site are remembered and hidden instantly on your next visit.</li>
+          <li>When the same ad company shows up on <b>3 different sites</b>, it is blocked everywhere.</li>
+          <li>Everything is learned and stored only on this computer.</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h2>Learned ad networks</h2>
+        <p class="muted">Companies Blockify has seen serving ads. Blocked ones are stopped on every site.</p>
+        <ul id="networks" class="chips"></ul>
+        <p id="networksEmpty" class="muted">Nothing learned yet. Browse normally and this list fills up on its own.</p>
+      </div>
+
+      <div class="card">
+        <div class="row">
+          <div>
+            <h2>Learned on sites</h2>
+            <p class="muted"><span id="learnedSitesCount">0 sites</span> with remembered ads. <span id="smartOffInfo"></span></p>
+          </div>
+          <button id="forget" class="btn danger">Forget all</button>
+        </div>
+        <ul id="smartOff" class="chips"></ul>
       </div>
     </section>
 
@@ -87,7 +120,7 @@
 
       <div class="card">
         <h2>Allowed sites</h2>
-        <p class="muted">Hush stays off on these sites. Add a site only if it stops working properly, for example a bank's payment window.</p>
+        <p class="muted">Blockify stays off on these sites. Add a site only if it stops working properly, for example a bank's payment window.</p>
         <form id="allowForm" class="add">
           <input id="allowDomain" type="text" placeholder="mybank.com" autocomplete="off" spellcheck="false" aria-label="Site to allow">
           <button class="btn primary" type="submit">Allow</button>

@@ -2,13 +2,13 @@
  * Hover to highlight, click to choose, confirm to hide it on this site for good. */
 (() => {
   "use strict";
-  if (window.__hushPickerActive) return;
-  window.__hushPickerActive = true;
+  if (window.__blockifyPickerActive) return;
+  window.__blockifyPickerActive = true;
 
   const api = globalThis.browser ?? globalThis.chrome;
 
   /* ---------- UI (shadow DOM so page CSS can't touch it) ---------- */
-  const host = document.createElement("hush-picker");
+  const host = document.createElement("blockify-picker");
   host.style.cssText = "all:initial;position:fixed;inset:0;z-index:2147483647;pointer-events:none;";
   const root = host.attachShadow({ mode: "closed" });
   root.innerHTML = `
@@ -153,7 +153,7 @@
     removeEventListener("keydown", onKey, true);
     removeEventListener("scroll", onScroll, true);
     host.remove();
-    window.__hushPickerActive = false;
+    window.__blockifyPickerActive = false;
   }
 
   addEventListener("mousemove", onMove, true);
@@ -176,7 +176,7 @@
       btn("cancel").textContent = "Done";
       try {
         const res = await api.runtime.sendMessage({ cmd: "hideElement", selector });
-        msg.textContent = res?.ok ? "Hidden. You can undo this in Hush settings." : "Couldn't save – try again.";
+        msg.textContent = res?.ok ? "Hidden. You can undo this in Blockify settings." : "Couldn't save – try again.";
       } catch {
         msg.textContent = "Couldn't save – try again.";
       }

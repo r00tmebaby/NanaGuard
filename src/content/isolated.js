@@ -1,42 +1,51 @@
 /* Isolated-world content script (all frames):
- *  - relays block events from main-world.js to the background counter
- *  - top frame: requests element hiding, removes fake "virus warning" overlays */
+ *  - relays block events from the page-context scripts to the background counter
+ *  - top frame: applies site cosmetic + procedural filters, runs smart ad detection,
+ *    removes fake "virus warning" overlays */
 (() => {
   "use strict";
 
-  const host = HUSH.hostFromUrl(location.href);
+  const host = BLK.hostFromUrl(location.href);
+  const isTop = window === window.top;
   let active = null; // null = settings still loading
   const queued = [];
 
-  const send = (kind) => {
+  const message = (msg) => {
     try {
-      const p = api.runtime.sendMessage({ cmd: "blocked", kind });
-      if (p && p.catch) p.catch(() => {});
+      const p = api.runtime.sendMessage(msg);
+      return p && p.catch ? p.catch(() => null) : Promise.resolve(null);
     } catch {
-      /* extension reloaded */
+      return Promise.resolve(null); // extension reloaded
     }
   };
+  const send = (kind) => message({ cmd: "blocked", kind });
 
-  document.addEventListener("hush:blocked", (e) => {
+  document.addEventListener("blockify:blocked", (e) => {
     const kind = String(e.detail);
-    if (!(kind in HUSH.STAT_LABELS)) return;
+    if (!(kind in BLK.STAT_LABELS)) return;
     if (active === null) queued.push(kind);
     else if (active) send(kind);
   });
 
-  const isTop = window === window.top;
+  BLK.getSettings().then(async (settings) => {
+    active = settings.enabled && !!host && !BLK.isAllowlisted(host, settings.allowlist);
+    queued.splice(0).forEach((k) => active && send(k));
+    if (!active || !isTop) return;
 
-  HUSH.getSettings().then(({ enabled, allowlist }) => {
-    active = enabled && !!host && !HUSH.isAllowlisted(host, allowlist);
-    if (active) {
-      queued.forEach(send);
-      if (isTop) {
-        // Background injects site-specific ad hiding + the user's hidden elements.
-        api.runtime.sendMessage({ cmd: "cosmetic" }).catch(() => {});
-        startOverlayWatch();
-      }
+    // Background injects CSS (site hiding, learned + user-hidden elements) and returns
+    // the procedural filters that need JavaScript.
+    const res = await message({ cmd: "cosmetic" });
+    const procedural = res && res.ok && res.value ? res.value.procedural : [];
+    if (procedural.length) BlkProcedural.start(procedural);
+
+    if (settings.smart && !BLK.matchesList(host, settings.smartOff)) {
+      BlkSmart.start((el, networks) => {
+        send("smart");
+        const selector = BLK.selectorFor(el, { allowPositional: false });
+        message({ cmd: "learn", selector, networks });
+      });
     }
-    queued.length = 0;
+    startOverlayWatch();
   });
 
   /* ---------- fake warning overlays ---------- */
@@ -58,13 +67,11 @@
 
   function coveringAncestor(el) {
     let best = null;
-    const vw = innerWidth;
-    const vh = innerHeight;
     for (let n = el; n && n !== document.body && n !== document.documentElement; n = n.parentElement) {
       const pos = getComputedStyle(n).position;
       if (pos !== "fixed" && pos !== "absolute" && pos !== "sticky") continue;
       const r = n.getBoundingClientRect();
-      if (r.width >= vw * 0.85 && r.height >= vh * 0.85) best = n;
+      if (r.width >= innerWidth * 0.85 && r.height >= innerHeight * 0.85) best = n;
     }
     return best;
   }
@@ -96,10 +103,7 @@
     const begin = () => {
       scan();
       new MutationObserver(schedule).observe(document.documentElement, {
-        childList: true,
-        subtree: true,
-        attributes: true,
-        attributeFilter: ["style", "class"],
+        childList: true, subtree: true, attributes: true, attributeFilter: ["style", "class"],
       });
       addEventListener("resize", schedule, { passive: true });
     };

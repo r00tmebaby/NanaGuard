@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "__MSG_extName__",
-  "short_name": "Hush",
-  "version": "1.2.0",
+  "short_name": "Blockify",
+  "version": "2.0.0",
   "description": "__MSG_extDescription__",
   "default_locale": "en",
   "minimum_chrome_version": "116",
@@ -21,7 +21,7 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["src/common.js", "src/content/isolated.js"],
+      "js": ["src/common.js", "src/content/procedural.js", "src/content/smart.js", "src/content/isolated.js"],
       "run_at": "document_start",
       "all_frames": true
     }
@@ -29,11 +29,20 @@
   "declarative_net_request": {
     "rule_resources": [
       { "id": "blocklist", "enabled": true, "path": "rules/blocklist.json" },
-      { "id": "easylist", "enabled": true, "path": "rules/easylist.json" }
+      { "id": "security", "enabled": true, "path": "rules/net-security.json" },
+      { "id": "ads", "enabled": true, "path": "rules/net-ads.json" },
+      { "id": "privacy", "enabled": true, "path": "rules/net-privacy.json" },
+      { "id": "annoyances", "enabled": true, "path": "rules/net-annoyances.json" }
     ]
   },
+  "web_accessible_resources": [
+    {
+      "resources": ["resources/*", "src/blocked/*"],
+      "matches": ["<all_urls>"]
+    }
+  ],
   "action": {
-    "default_title": "Hush",
+    "default_title": "Blockify",
     "default_popup": "src/popup/popup.html",
     "default_icon": {
       "16": "icons/icon-16.png",
@@ -46,7 +55,7 @@
   },
   "browser_specific_settings": {
     "gecko": {
-      "id": "hush@r00tmebaby",
+      "id": "blockify@r00tmebaby",
       "strict_min_version": "128.0",
       "data_collection_permissions": { "required": ["none"] }
     }

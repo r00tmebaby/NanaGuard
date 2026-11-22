@@ -46,12 +46,31 @@ const refs = [
   "src/content/picker.js",
   "src/content/youtube.js",
   "src/content/youtube.css",
-  "rules/cosmetic.json",
-  "rules/cosmetic-generic.css",
+  "src/blocked/blocked.html",
   "rules/popup-hosts.json",
+  "rules/security-hosts.json",
   "rules/meta.json",
   "_locales/en/messages.json",
+  ...["ads", "privacy", "annoyances"].flatMap((c) => [`rules/${c}-generic.css`, `rules/${c}-cosmetic.json`, `rules/${c}-scriptlets.json`]),
 ];
+// Scriptlet shards + their syntax
+for (const c of ["ads", "privacy", "annoyances"]) {
+  for (const { file } of await json(`rules/${c}-scriptlets.json`)) {
+    refs.push(file);
+    try {
+      execFileSync(process.execPath, ["--check", path.join(ROOT, file)], { stdio: "pipe" });
+    } catch (e) {
+      fail(`${file}: ${e.stderr}`);
+    }
+  }
+}
+// Redirect targets must exist
+for (const { path: p } of manifest.declarative_net_request.rule_resources) {
+  for (const r of await json(p)) {
+    const target = r.action.redirect?.extensionPath;
+    if (target && !refs.includes(target.slice(1))) refs.push(target.slice(1));
+  }
+}
 for (const r of refs) if (!(await exists(r))) fail(`missing file referenced by extension: ${r}`);
 
 // 3. DNR rulesets
@@ -66,9 +85,11 @@ for (const { id, path: p } of manifest.declarative_net_request.rule_resources) {
     const where = `${id}#${r.id}`;
     if (!Number.isInteger(r.id) || r.id < 1 || ids.has(r.id)) fail(`${where}: bad or duplicate id`);
     ids.add(r.id);
-    if (!r.action || !["block", "allow", "allowAllRequests"].includes(r.action.type)) fail(`${where}: bad action`);
+    if (!r.action || !["block", "allow", "allowAllRequests", "redirect"].includes(r.action.type)) fail(`${where}: bad action`);
     const c = r.condition || {};
-    if (!c.urlFilter && !c.requestDomains) fail(`${where}: no urlFilter/requestDomains`);
+    const isParam = !!r.action.redirect?.transform;
+    if (!isParam && !c.urlFilter && !c.requestDomains && !c.initiatorDomains) fail(`${where}: no urlFilter/requestDomains`);
+    if (r.action.type === "redirect" && !c.resourceTypes) fail(`${where}: redirect without resourceTypes`);
     if (c.urlFilter && (!/^[\x20-\x7e]+$/.test(c.urlFilter) || c.urlFilter.startsWith("||*"))) fail(`${where}: bad urlFilter`);
     for (const t of [...(c.resourceTypes || []), ...(c.excludedResourceTypes || [])]) {
       if (!VALID_TYPES.has(t)) fail(`${where}: bad resource type ${t}`);
@@ -82,7 +103,7 @@ for (const { id, path: p } of manifest.declarative_net_request.rule_resources) {
     }
   }
 }
-if (total > 30000) fail(`static rules ${total} exceed Chrome's guaranteed 30,000`);
+if (total > 30000) console.warn(`note: ${total} static rules exceed Chrome's guaranteed 30,000 (rest uses the shared pool)`);
 
 if (errors.length) {
   console.error(errors.slice(0, 50).join("\n"));

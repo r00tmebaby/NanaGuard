@@ -1,12 +1,131 @@
 {
-  "list": "EasyList",
-  "firstBlockId": 517,
-  "source": "https://easylist.to/easylist/easylist.txt",
-  "version": "202611221611",
-  "generated": "2026-11-22T16:22:54.058Z",
-  "networkRules": 3821,
-  "genericSelectors": 13333,
-  "siteSelectors": 10275,
-  "popupHosts": 2741,
-  "skipped": 851
+  "generated": "2026-11-22T16:49:41.385Z",
+  "sources": [
+    {
+      "id": "easylist",
+      "cat": "ads",
+      "title": "EasyList",
+      "version": "202611221647",
+      "ok": true
+    },
+    {
+      "id": "ubo",
+      "cat": "ads",
+      "title": "uBlock filters",
+      "version": "%timestamp%",
+      "ok": true
+    },
+    {
+      "id": "ubo-quick",
+      "cat": "ads",
+      "title": "uBlock quick fixes",
+      "version": "%timestamp%",
+      "ok": true
+    },
+    {
+      "id": "ubo-unbreak",
+      "cat": "ads",
+      "title": "uBlock unbreak",
+      "version": "%timestamp%",
+      "ok": true
+    },
+    {
+      "id": "pgl",
+      "cat": "ads",
+      "title": "Peter Lowe's list",
+      "version": "",
+      "ok": true
+    },
+    {
+      "id": "easyprivacy",
+      "cat": "privacy",
+      "title": "EasyPrivacy",
+      "version": "202611221647",
+      "ok": true
+    },
+    {
+      "id": "ubo-privacy",
+      "cat": "privacy",
+      "title": "uBlock privacy",
+      "version": "%timestamp%",
+      "ok": true
+    },
+    {
+      "id": "urlhaus",
+      "cat": "security",
+      "title": "URLhaus malware",
+      "version": "",
+      "ok": true
+    },
+    {
+      "id": "phishing",
+      "cat": "security",
+      "title": "Phishing filter",
+      "version": "",
+      "ok": true
+    },
+    {
+      "id": "cookies",
+      "cat": "annoyances",
+      "title": "Fanboy cookie banners",
+      "version": "2026-11-21 22:35 UTC",
+      "ok": true
+    },
+    {
+      "id": "ubo-annoyances",
+      "cat": "annoyances",
+      "title": "uBlock annoyances",
+      "version": "%timestamp%",
+      "ok": true
+    }
+  ],
+  "categories": {
+    "ads": {
+      "networkRules": 9083,
+      "firstBlockId": 2417,
+      "firstParamId": 9044,
+      "genericSelectors": 13500,
+      "siteSelectors": 16593,
+      "proceduralSelectors": 691,
+      "scriptletHosts": 21588,
+      "scriptletCalls": 28770,
+      "popupHosts": 2801
+    },
+    "privacy": {
+      "networkRules": 10168,
+      "firstBlockId": 844,
+      "firstParamId": 10140,
+      "genericSelectors": 4,
+      "siteSelectors": 17,
+      "proceduralSelectors": 8,
+      "scriptletHosts": 1110,
+      "scriptletCalls": 3030
+    },
+    "security": {
+      "networkRules": 40,
+      "firstBlockId": 1,
+      "firstParamId": 41,
+      "genericSelectors": 0,
+      "siteSelectors": 0,
+      "proceduralSelectors": 0,
+      "scriptletHosts": 0,
+      "scriptletCalls": 0,
+      "dangerousHosts": 18560
+    },
+    "annoyances": {
+      "networkRules": 1982,
+      "firstBlockId": 447,
+      "firstParamId": 1982,
+      "genericSelectors": 15073,
+      "siteSelectors": 9071,
+      "proceduralSelectors": 145,
+      "scriptletHosts": 6279,
+      "scriptletCalls": 8026
+    }
+  },
+  "skipped": {
+    "skippedNetwork": 1960,
+    "skippedCosmetic": 2990,
+    "skippedScriptlets": 946
+  }
 }

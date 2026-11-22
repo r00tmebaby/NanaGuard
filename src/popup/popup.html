@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Hush</title>
+  <title>Blockify</title>
   <link rel="stylesheet" href="../ui/ui.css">
   <link rel="stylesheet" href="popup.css">
 </head>
@@ -10,7 +10,7 @@
   <header class="row">
     <div class="brand">
       <img src="../../icons/icon-32.png" width="24" height="24" alt="">
-      <h1>Hush</h1>
+      <h1>Blockify</h1>
     </div>
     <label class="switch" title="Protection on/off everywhere">
       <input type="checkbox" id="global" aria-label="Protection everywhere">
@@ -19,7 +19,7 @@
   </header>
 
   <div id="perm" class="banner" hidden>
-    <span>Hush needs access to websites to protect them.</span>
+    <span>Blockify needs access to websites to protect them.</span>
     <button id="grant" class="btn primary">Allow</button>
   </div>
 
@@ -42,21 +42,18 @@
   </section>
 
   <section class="counts" aria-label="Blocked on this page">
-    <div class="card count"><strong id="adsCount">–</strong><span class="muted">ads blocked</span></div>
+    <div class="card count"><strong id="adsCount">–</strong><span class="muted">ads &amp; trackers blocked</span></div>
     <div class="card count"><strong id="hiddenCount">–</strong><span class="muted">banners hidden</span></div>
     <div class="card count"><strong id="tabCount">0</strong><span class="muted">tricks stopped</span></div>
   </section>
 
-  <label class="card row toggle-row">
-    <span>
-      <span class="strong">Block ads &amp; banners</span>
-      <span id="adsInfo" class="muted small block"></span>
-    </span>
-    <span class="switch"><input type="checkbox" id="ads" aria-label="Block ads and banners"><span></span></span>
-  </label>
+  <div id="smartRow" class="card smart row" hidden>
+    <span><b id="smartCount">0</b> ads spotted automatically on this page</span>
+    <button id="smartUndo" class="btn small-btn" title="Stop smart detection on this site and forget what it learned here">Undo</button>
+  </div>
 
   <details>
-    <summary class="muted small">Details · <span id="totalCount">0</span> tricks stopped in total</summary>
+    <summary class="muted small">Details · <span id="totalCount">0</span> blocked in total</summary>
     <ul id="breakdown" class="breakdown"></ul>
   </details>
 

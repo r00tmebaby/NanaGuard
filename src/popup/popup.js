@@ -3,8 +3,9 @@
   const $ = (id) => document.getElementById(id);
   const ALL_SITES = { origins: ["<all_urls>"] };
   const [tab] = await api.tabs.query({ active: true, currentWindow: true });
-  const host = tab ? HUSH.hostFromUrl(tab.url) : null;
+  const host = tab ? BLK.hostFromUrl(tab.url) : null;
   const meta = await fetch(api.runtime.getURL("rules/meta.json")).then((r) => r.json()).catch(() => null);
+  const fmt = (n) => (n == null ? "–" : n.toLocaleString());
 
   $("version").textContent = "v" + api.runtime.getManifest().version;
 
@@ -13,51 +14,44 @@
     if (tab && host) api.tabs.reload(tab.id);
   };
 
-  // Ads blocked on this tab: network rules that matched (activeTab grants access when the popup opens).
-  async function countAds() {
+  // Ads/trackers blocked on this tab: matched network rules (activeTab grants access on popup open).
+  async function countNetwork() {
     if (!tab || !host) return null;
     try {
       const { rulesMatchedInfo } = await api.declarativeNetRequest.getMatchedRules({ tabId: tab.id });
-      const firstBlock = meta?.firstBlockId ?? 1;
-      return rulesMatchedInfo.filter(({ rule }) =>
-        rule.rulesetId === "blocklist" ||
-        (rule.rulesetId === "easylist" && rule.ruleId >= firstBlock) ||
-        (rule.rulesetId === "_dynamic" && rule.ruleId === 2)
-      ).length;
+      const cats = meta ? meta.categories : {};
+      return rulesMatchedInfo.filter(({ rule }) => {
+        if (rule.rulesetId === "blocklist") return true;
+        if (rule.rulesetId === "_dynamic") return rule.ruleId !== 1;
+        const c = cats[rule.rulesetId];
+        return c ? rule.ruleId >= c.firstBlockId && rule.ruleId < c.firstParamId : false;
+      }).length;
     } catch {
       return null; // unsupported or rate-limited
     }
   }
 
-  async function renderPageCounts() {
-    const fmt = (n) => (n == null ? "–" : n.toLocaleString());
-    const [ads, hidden] = await Promise.all([
-      countAds(),
-      host
-        ? api.runtime.sendMessage({ cmd: "countHidden", tabId: tab.id }).then((r) => (r?.ok ? r.value : null), () => null)
-        : null,
+  async function renderPageCounts(tabStats) {
+    const [net, hidden] = await Promise.all([
+      countNetwork(),
+      host ? api.runtime.sendMessage({ cmd: "countHidden", tabId: tab.id }).then((r) => (r?.ok ? r.value : null), () => null) : null,
     ]);
-    $("adsCount").textContent = fmt(ads);
-    $("hiddenCount").textContent = fmt(hidden);
+    $("adsCount").textContent = fmt(net);
+    $("hiddenCount").textContent = fmt(hidden == null ? null : hidden + (tabStats.smart || 0));
   }
 
   async function render() {
-    const settings = await HUSH.getSettings();
-    const { stats = {} } = await api.storage.local.get("stats");
+    const settings = await BLK.getSettings();
+    const stats = await BLK.getLocal("stats", {});
     const key = tab ? `tab:${tab.id}` : "";
     const tabStats = (key && (await api.storage.session.get(key))[key]) || {};
 
     $("perm").hidden = await api.permissions.contains(ALL_SITES);
     $("global").checked = settings.enabled;
-    $("ads").checked = settings.ads;
-    $("ads").disabled = !settings.enabled;
-    $("adsInfo").textContent = meta
-      ? `${meta.list} · ${(meta.networkRules + meta.genericSelectors + meta.siteSelectors).toLocaleString()} rules`
-      : "";
     document.body.classList.toggle("paused", !settings.enabled);
 
     const toggle = $("siteToggle");
-    const allowed = host && HUSH.isAllowlisted(host, settings.allowlist);
+    const allowed = host && BLK.isAllowlisted(host, settings.allowlist);
     if (host) {
       $("host").textContent = host.replace(/^www\./, "");
       toggle.checked = settings.enabled && !allowed;
@@ -67,30 +61,35 @@
         ? "Protection is paused everywhere."
         : allowed
           ? "Protection is off for this site."
-          : "Ads, popups and scam tricks are blocked here.";
+          : "Ads, trackers, popups and scam tricks are blocked here.";
     } else {
       $("host").textContent = "Browser page";
       toggle.checked = false;
       toggle.disabled = true;
       document.body.classList.add("off");
-      $("siteStatus").textContent = "Hush doesn't run on built-in browser pages.";
+      $("siteStatus").textContent = "Blockify doesn't run on built-in browser pages.";
     }
     $("pick").disabled = !host || !settings.enabled || allowed;
     $("blockSite").disabled = !host;
 
-    $("tabCount").textContent = (tabStats.total || 0).toLocaleString();
-    $("totalCount").textContent = (stats.total || 0).toLocaleString();
+    const tricks = Object.entries(tabStats).filter(([k]) => k !== "total" && k !== "smart").reduce((n, [, v]) => n + v, 0);
+    $("tabCount").textContent = fmt(tricks);
+    $("smartRow").hidden = !tabStats.smart;
+    $("smartCount").textContent = fmt(tabStats.smart || 0);
+
+    $("totalCount").textContent = fmt(stats.total || 0);
     $("breakdown").replaceChildren(
-      ...Object.entries(HUSH.STAT_LABELS).map(([k, label]) => {
+      ...Object.entries(BLK.STAT_LABELS).map(([k, label]) => {
         const li = document.createElement("li");
         const name = document.createElement("span");
         const value = document.createElement("b");
         name.textContent = label;
-        value.textContent = (stats[k] || 0).toLocaleString();
+        value.textContent = fmt(stats[k] || 0);
         li.append(name, value);
         return li;
       })
     );
+    renderPageCounts(tabStats);
   }
 
   $("global").addEventListener("change", async (e) => {
@@ -99,15 +98,9 @@
     render();
   });
 
-  $("ads").addEventListener("change", async (e) => {
-    await api.storage.sync.set({ ads: e.target.checked });
-    await applyAndReload();
-    render();
-  });
-
   $("siteToggle").addEventListener("change", async (e) => {
     if (!host) return;
-    await HUSH.setSiteAllowed(host, !e.target.checked);
+    await BLK.setSiteAllowed(host, !e.target.checked);
     await applyAndReload();
     render();
   });
@@ -118,10 +111,22 @@
   });
 
   $("blockSite").addEventListener("click", async () => {
-    const domain = HUSH.normalizeDomain(host);
+    const domain = BLK.normalizeDomain(host);
     if (!domain || !confirm(`Block ${domain}? It won't open again until you remove it in Settings.`)) return;
-    await HUSH.setSiteBlocked(domain, true);
+    await BLK.setSiteBlocked(domain, true);
     await applyAndReload();
+    window.close();
+  });
+
+  $("smartUndo").addEventListener("click", async () => {
+    const domain = BLK.normalizeDomain(host);
+    if (!domain) return;
+    const { smartOff } = await BLK.getSettings();
+    await api.storage.sync.set({ smartOff: [...new Set([...smartOff, domain])] });
+    const learned = await BLK.getLocal("learnedSites", {});
+    delete learned[domain];
+    await api.storage.local.set({ learnedSites: learned });
+    api.tabs.reload(tab.id);
     window.close();
   });
 
@@ -137,5 +142,4 @@
   });
 
   render();
-  renderPageCounts();
 })();

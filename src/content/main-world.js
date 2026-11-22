@@ -13,7 +13,7 @@
     try {
       nativeDispatch.call(
         document,
-        new NativeCustomEvent("hush:blocked", { detail: String(kind) })
+        new NativeCustomEvent("blockify:blocked", { detail: String(kind) })
       );
     } catch {
       /* document not ready / detached */
@@ -155,7 +155,7 @@
       Object.defineProperty(o, key, { ...desc, ...next });
     };
     const blockedPromise = (msg) =>
-      W.Promise.reject(new W.DOMException(msg || "Blocked by Hush", "NotAllowedError"));
+      W.Promise.reject(new W.DOMException(msg || "Blocked by Blockify", "NotAllowedError"));
 
     // Gesture listeners for this realm.
     for (const type of ["pointerdown", "click", "keydown"]) {
@@ -289,7 +289,7 @@
         function subscribe() {
           if (realPermission() === "granted") return orig.apply(this, arguments);
           report("notification");
-          return blockedPromise("Push subscription blocked by Hush");
+          return blockedPromise("Push subscription blocked by Blockify");
         }
       );
     }
@@ -318,7 +318,7 @@
       function requestFullscreen() {
         if (isMedia(this)) return orig.apply(this, arguments);
         report("fullscreen");
-        return blockedPromise("Fullscreen blocked by Hush");
+        return blockedPromise("Fullscreen blocked by Blockify");
       }
     );
     for (const key of ["webkitRequestFullscreen", "webkitRequestFullScreen", "mozRequestFullScreen"]) {

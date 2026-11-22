@@ -27,7 +27,7 @@ jobs:
         if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         run: |
           node scripts/update-filters.mjs
-          if git diff --quiet -- rules/easylist.json rules/cosmetic-generic.css rules/cosmetic.json rules/popup-hosts.json; then
+          if git diff --quiet -- rules ':!rules/meta.json'; then
             echo "No filter changes"; git checkout -- rules; exit 0
           fi
           V=$(node -e '
@@ -40,7 +40,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add rules manifest.json
-          git commit -m "Update EasyList to $(jq -r .version rules/meta.json), v$V"
+          git commit -m "Update filter lists, v$V"
           git tag "v$V"
           git push --atomic origin HEAD:${{ github.event.repository.default_branch }} "v$V"
           echo "tag=v$V" >> "$GITHUB_OUTPUT"
@@ -57,7 +57,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: hush-packages
+          name: blockify-packages
           path: dist/*.zip
 
       - name: Publish GitHub release
@@ -65,4 +65,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.filters.outputs.tag || github.ref_name }}
-        run: gh release create "$TAG" dist/*.zip --generate-notes --title "Hush $TAG"
+        run: gh release create "$TAG" dist/*.zip --generate-notes --title "Blockify $TAG"

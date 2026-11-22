@@ -1,84 +1,112 @@
-# Hush – Ad, Popup & Scam Blocker
+# Blockify
 
-A lightweight, privacy-first browser extension that blocks ads and banners and stops the tricks used to scare and scam people online: popups, popunders, notification spam, fake virus warnings and browser lock screens.
+**Ads, trackers, popups and scams, blocked automatically. Blockify also learns new ads as you browse.**
 
-Works on **Chrome, Edge, Brave, Opera** (Chromium 116+) and **Firefox 128+** from a single Manifest V3 codebase.
+Blockify is a privacy-first browser extension for **Chrome, Edge, Brave, Opera** (Chromium 116+) and **Firefox 128+**, built on a single Manifest V3 codebase. It combines the community's best filter lists, a uBlock-compatible rule engine, and a smart detector that recognises ads the way a person does.
 
-## Features
+---
 
-### Automatic (nothing to configure)
+## How it blocks
 
-| Threat | How Hush stops it |
+Blockify works in layers. Each one catches what the one before it missed.
+
+| Layer | What it does | Powered by |
+|---|---|---|
+| **1. Network** | Stops ads, trackers and malware before they download. | ~21k compiled browser rules from EasyList, uBlock filters, EasyPrivacy, Peter Lowe, URLhaus, phishing and cookie lists |
+| **2. Stand-ins** | Replaces ad scripts that sites depend on (Google GPT, AdSense, Analytics, Tag Manager, Amazon…) with harmless stand-ins, so pages don't break. | `resources/` |
+| **3. Banner hiding** | Hides ad boxes, cookie banners and "sponsored" blocks with ~54k element rules, including smart rules like *"hide cards that contain the text Sponsored"*. | CSS + procedural engine (`:has-text`, `:upward`, `:xpath`, `:matches-css`…) |
+| **4. Site fixes** | Defuses anti-adblock walls and ad loaders on ~29k sites with targeted page fixes. | Scriptlet engine (uBlock/ABP compatible: `set-constant`, `abort-on-property-read`, `json-prune`, `no-fetch-if`…) |
+| **5. Smart detection** | Finds ads **no list knows about** and learns from them (see below). | `src/content/smart.js` |
+| **6. Scam shield** | Stops popups and popunders, "click Allow" notification spam, alert loops, fake virus screens, fullscreen lock screens and back-button traps. | `src/content/main-world.js` |
+| **7. Danger page** | Known malware and phishing sites show a clear warning instead of loading (18k+ hosts). | `src/blocked/` |
+| **8. Clean links** | Strips tracking tags (`utm_*`, `fbclid`, `gclid`, …) from addresses. | URL rewrite rules |
+| **YouTube** | Removes ad slots from the player data, auto-skips anything that slips through, and hides feed ads. | `src/content/youtube.js` |
+
+## 🧠 Learns as you go
+
+People spot ads instantly: an **"Ad"** or **"Sponsored"** label, the little **AdChoices ⓘ** icon, a box at a **standard banner size** (300×250, 728×90…), or content served by **another company's server**. Blockify scores every page on those same cues:
+
+| Cue | Points |
 |---|---|
-| Ads & banners | **EasyList**, converted to native browser rules: ~3.8k compacted network rules (51k filters), 13k generic + 10k site-specific banner-hiding rules. Refreshed weekly by CI. |
-| YouTube ads | Ad slots are removed from the player data before the player reads it (initial page data, `JSON.parse`, `fetch().json()`). Feed, sidebar and masthead ads are hidden. Any ad that still slips through is muted, skipped to its end and auto-dismissed. The "ad blockers not allowed" wall is removed. |
-| Popups & popunders | New windows need a real click on a real button or link, one window per click. Synthetic clicks, invisible full-page links and the `about:blank` iframe bypass are covered. Tabs that land on any of 2.7k EasyList popup-ad hosts are closed. |
-| "Click *Allow* to continue" | Notification prompts and push subscriptions are refused (sites already allowed keep working). |
-| Alert / confirm / print loops | Back-to-back dialogs are silenced after the second one. |
-| Fake "Windows Defender" fullscreen | Fullscreen is allowed only for video/games; keyboard lock and pointer lock hijacks are blocked. |
-| Back-button traps | History flooding is capped. |
-| "Are you sure you want to leave?" | Ignored unless you actually typed something on the page. |
-| Fake "your PC is infected" overlays | Full-screen overlays with several scam signals (fake support numbers, "do not restart", etc.) are removed. |
+| "Ad" / "Sponsored" / "Anzeige" / "Publicidad" / "Реклама" … label (30+ languages) | +3 |
+| AdChoices marker, ad-click link (doubleclick, `/aclk?` …) or ad-iframe id | +3 |
+| Third-party iframe, ad-ish id/class (`ad-slot`, `sponsor`, `dfp`, `taboola` …) | +2 |
+| Standard ad size | +1 |
 
-### You decide
+A box scoring **5 or more** is hidden, as long as it isn't real content (headlines, articles, forms and videos are never touched). Then Blockify **learns**:
 
-- **Hide an ad on this page:** click the toolbar icon, click the banner, and confirm. It stays hidden on that site for good.
-- **Block site:** never load a website again (pages *and* anything embedded from it).
-- **Protection on this site:** a per-site switch for sites that break, such as a bank's payment window.
-- **Settings:** tabs for Protection, Ads (EasyList info and your hidden elements), Sites (blocked and allowed lists) and Statistics (with backup export/import).
+1. **Per site:** the ad's position is remembered, so next visit it's hidden instantly, before it even renders.
+2. **Across the web:** Blockify records which ad company served it. When the **same company shows up on 3 different sites**, its domain is blocked **everywhere**, with no list update needed.
+3. **You stay in control:** *Settings → Smart* lists every learned network (with **Allow** / **Forget**). The popup's **Undo** turns smart detection off for a site and forgets what it learned there.
+4. **Private:** everything learned stays on your computer.
 
-## Try it
+The filter lists themselves also update every week. CI recompiles them and publishes a new release automatically.
 
-1. **Chrome / Edge / Brave:** go to `chrome://extensions`, enable **Developer mode**, click **Load unpacked**, then select this folder.
-   **Firefox:** go to `about:debugging#/runtime/this-firefox`, click **Load Temporary Add-on**, then select `manifest.json`.
-2. Open [`tests/playground.html`](tests/playground.html). It has ten harmless buttons that simulate every attack and show ✔/✘.
-   (For `file://` in Chrome, turn on *Allow access to file URLs* in the extension's details, or run `npx serve tests`.)
+## You decide
+
+- **Hide an ad on this page:** click the toolbar icon, click the banner, and confirm. It stays gone on that site.
+- **Block site:** never open a website again. You get a friendly "You blocked this site" page instead.
+- **Per-site switch:** turn Blockify off for a site that breaks, such as a bank's payment window.
+- **Per-list switches:** Ads, Trackers, Malware & phishing, and Cookie banners & annoyances.
+- **Backup:** export and import all your lists and learned data.
+
+## Install
+
+**Chrome / Edge / Brave / Opera:** go to `chrome://extensions`, turn on **Developer mode**, click **Load unpacked**, then select this folder.
+**Firefox:** go to `about:debugging#/runtime/this-firefox`, click **Load Temporary Add-on**, then select `manifest.json`.
+
+Then open [`tests/playground.html`](tests/playground.html) to watch each protection work. (For `file://` in Chrome, enable *Allow access to file URLs* in the extension's details.)
+
+### Other browsers
+| Browser | Status |
+|---|---|
+| Chrome, Edge, Brave, Opera, Vivaldi | ✅ Supported (same build) |
+| Firefox (desktop & Android) | ✅ Supported (firefox build) |
+| Safari (macOS / iOS) | 🟡 Possible. Safari supports MV3 web extensions, but it needs a Mac with Xcode (`xcrun safari-web-extension-converter`) and an Apple Developer account to ship. Not built yet. |
+| Internet Explorer | ❌ Retired by Microsoft in 2022, with no extension support. Use Edge, which runs the Chrome build. |
 
 ## Development
 
 ```bash
-npm run filters    # download EasyList → rules/*.json, rules/*.css
-npm run check      # syntax, manifest references, DNR rule validation
-npm install && npm run test:e2e   # 27 end-to-end checks in real Chrome (CHROME_PATH on mac/linux)
-npm run build      # dist/hush-chrome-<v>.zip, dist/hush-firefox-<v>.zip
+npm run filters      # download & compile all lists → rules/
+npm run check        # syntax, file refs, rule validation, scriptlet shards
+npm install && npm run test:e2e   # 43 end-to-end checks in real Chrome (CHROME_PATH on mac/linux)
+npm run build        # dist/blockify-chrome-<v>.zip, dist/blockify-firefox-<v>.zip
 ```
 
-### CI / releases (`.github/workflows/release.yml`)
-- Every push runs the checks, builds both packages and lints the Firefox one with `web-ext`.
-- Pushing a `v*` tag publishes a GitHub Release with both zips.
-- **Every Monday** CI downloads the latest EasyList. If it changed, CI bumps the patch version, commits, tags and publishes a release automatically.
+### How the lists are compiled (`scripts/update-filters.mjs`)
+- Follows `!#include` and evaluates `!#if` directives the way uBlock Origin Lite does.
+- Network filters become `declarativeNetRequest` rules: options like `$3p`, `$domain`, `$to`, `$denyallow`, `$important`, `$redirect`, `$removeparam` and `$badfilter` are supported. Plain-domain filters are packed into `requestDomains` rules (e.g. 51k EasyList filters → 3.8k rules).
+- Element-hiding, `:style()` and procedural filters are split into generic CSS, per-site data and JS-evaluated filters.
+- Scriptlets (`##+js(...)`, ABP `#$#`) are bundled with the runtime and **sharded by host** (~80 KB each), so each page parses only what can apply to it.
+- Anything that can't be expressed safely is skipped and counted in `rules/meta.json`.
+
+### CI (`.github/workflows/release.yml`)
+Every push runs the checks, builds both packages and lints Firefox with `web-ext`. **Every Monday**, CI downloads all the lists. If anything changed, it bumps the version, commits, tags and publishes a GitHub Release with the store zips.
 
 ### Publishing
-- **Chrome Web Store:** upload the chrome zip (one-time $5 fee). **Edge Add-ons** takes the same zip for free.
-- **Firefox Add-ons (AMO):** upload the firefox zip, *listed* or *unlisted*.
-- Use [`PRIVACY.md`](PRIVACY.md) as the privacy policy.
+Chrome Web Store (one-time $5) · Edge Add-ons (free, same zip) · Firefox AMO (free). Use [`PRIVACY.md`](PRIVACY.md) as the privacy policy.
 
 ## Architecture
 
 ```
-manifest.json                 cross-browser manifest (build strips per-browser keys)
-src/common.js                 shared: settings, allow/block lists, domain parsing
-src/background.js             registers page script + banner CSS, DNR rules, per-site hiding,
-                              counters, popunder-tab closer
-src/content/main-world.js     page-context API hardening (popups, notifications, dialogs…)
-src/content/isolated.js       relays events, requests per-site hiding, removes scam overlays
-src/content/picker.js         "Hide an ad on this page" element picker
-src/content/youtube.js/.css   YouTube ad removal (player-data pruning + skip fallback)
-src/popup/, src/options/      UI
-rules/blocklist.json          hand-picked popunder networks
-rules/easylist.json …         generated by scripts/update-filters.mjs (do not edit)
-scripts/                      update-filters, check, build, make-icons
-tests/                        e2e test + manual playground
+manifest.json                   cross-browser MV3 manifest
+src/background.js               rules, script registration, cosmetics, learning, counters
+src/common.js                   shared settings + helpers (BLK)
+src/content/main-world.js       scam shield (page context)
+src/content/isolated.js         event relay, cosmetics, overlay remover
+src/content/procedural.js       :has-text / :upward / :xpath … engine
+src/content/smart.js            smart ad detector
+src/content/scriptlets-runtime.js   scriptlet engine (bundled into rules/scriptlets/*)
+src/content/youtube.js/.css     YouTube ad removal
+src/content/picker.js           "Hide an ad on this page"
+src/popup, src/options, src/blocked   UI
+resources/                      harmless stand-ins for blocked ad scripts
+rules/                          generated (do not edit)
+scripts/                        update-filters, check, build, make-icons
+tests/                          e2e suite + manual playground
 ```
-
-Allowlisted sites never receive the page script or banner CSS (dynamic `registerContentScripts` with `excludeMatches`), and they get an `allowAllRequests` network rule. User-blocked sites get a priority-200 block rule.
 
 ## Limits
 
-Hush is a browser protection layer, **not antivirus**. For a well-protected setup, also:
-
-1. Keep **Windows Security / Defender** and Windows Update on.
-2. In browser settings → *Site settings → Notifications*, remove sites that were already allowed. They were granted permission before Hush was installed, so they can still push messages.
-3. Use a **standard (non-admin)** Windows account for daily use.
-4. YouTube changes its ad delivery often. If ads come back, update `src/content/youtube.js` (keys in `AD_KEYS`, selectors in `youtube.css`).
-5. MV3 network rules can't do everything uBlock Origin's filters can (no scriptlets or `$redirect`). For power users, uBlock Origin on Firefox goes further.
+Blockify is a browser protection layer, **not antivirus**. Keep Windows Security / Defender and updates on. Also clear any sites you already allowed under *Site settings → Notifications*, because those were granted before Blockify was installed.
