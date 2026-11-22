@@ -2,6 +2,10 @@
 
 All notable changes to Kinguard. Filter-list refreshes published by the weekly CI job bump the patch version and are not listed individually.
 
+## 2.4.2
+- No longer hooks `innerHTML`/`insertAdjacentHTML`. Websites' own console warnings (e.g. Google's "speculation rule set … will be ignored") were being shown as coming from Kinguard. Protection is unchanged: hidden-iframe popup tricks are still caught via `contentWindow`.
+- Reading `contentWindow` / `contentDocument` / `Notification.permission` on the wrong kind of object (common in sites' feature detection) no longer throws "Illegal invocation" inside Kinguard's code, which Chrome listed as a Kinguard error.
+
 ## 2.4.1
 Hardening pass by the agent team (2 senior reviewers, 10 file-scoped fixes, each reviewed).
 - Fewer false alarms: no "fake Binance" on `finance.*` logins, no "fake Microsoft" on company Outlook webmail or `*.co.uk` subdomains, higher bar for scam banners on shop checkout pages.

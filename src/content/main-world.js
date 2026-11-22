@@ -279,16 +279,22 @@
     const getWin = (f) => (cwDesc ? cwDesc.get.call(f) : f.contentWindow);
 
     for (const proto of [W.HTMLIFrameElement.prototype, W.HTMLFrameElement && W.HTMLFrameElement.prototype]) {
+      // Pages (feature detection, frameworks) sometimes read these on non-iframe objects, e.g.
+      // HTMLIFrameElement.prototype.contentWindow. The native getter then throws "Illegal
+      // invocation", which Chrome would list under Kinguard's errors because our wrapper is on
+      // the stack. Return null instead (what a frame without a window returns).
       wrapAccessor(proto, "contentWindow", (d) => ({
         get() {
-          const w = d.get.call(this);
-          harden(w);
+          let w;
+          try { w = d.get.call(this); } catch { return null; }
+          if (w) harden(w);
           return w;
         },
       }));
       wrapAccessor(proto, "contentDocument", (d) => ({
         get() {
-          const doc = d.get.call(this);
+          let doc;
+          try { doc = d.get.call(this); } catch { return null; }
           if (doc) harden(doc.defaultView);
           return doc;
         },
@@ -304,19 +310,9 @@
     for (const key of ["append", "prepend", "after", "before", "replaceWith"]) {
       wrap(W.Element.prototype, key, afterInsert);
     }
-    wrap(W.Element.prototype, "insertAdjacentHTML", (orig) =>
-      function () {
-        const r = orig.apply(this, arguments);
-        hardenFrame(this.parentNode || this, getWin);
-        return r;
-      }
-    );
-    wrapAccessor(W.Element.prototype, "innerHTML", (d) => ({
-      set(v) {
-        d.set.call(this, v);
-        hardenFrame(this, getWin);
-      },
-    }));
+    // innerHTML / insertAdjacentHTML are deliberately NOT wrapped: iframes created that way are
+    // still hardened when the page touches contentWindow/contentDocument (above), and wrapping
+    // those hot setters made Chrome attribute pages' own console warnings to Kinguard.
 
     /* Notification spam ------------------------------------------------- */
     if (W.Notification) {
@@ -324,7 +320,8 @@
       const realPermission = () => (permDesc && permDesc.get ? permDesc.get.call(W.Notification) : "default");
       wrapAccessor(W.Notification, "permission", (d) => ({
         get() {
-          const p = d.get.call(this);
+          let p;
+          try { p = d.get.call(this); } catch { p = realPermission(); }
           return p === "granted" ? p : "denied";
         },
       }));
