@@ -41,9 +41,10 @@
     </div>
   </section>
 
-  <section class="counts">
-    <div class="card count"><strong id="tabCount">0</strong><span class="muted">blocked on this page</span></div>
-    <div class="card count"><strong id="totalCount">0</strong><span class="muted">blocked in total</span></div>
+  <section class="counts" aria-label="Blocked on this page">
+    <div class="card count"><strong id="adsCount">–</strong><span class="muted">ads blocked</span></div>
+    <div class="card count"><strong id="hiddenCount">–</strong><span class="muted">banners hidden</span></div>
+    <div class="card count"><strong id="tabCount">0</strong><span class="muted">tricks stopped</span></div>
   </section>
 
   <label class="card row toggle-row">
@@ -55,7 +56,7 @@
   </label>
 
   <details>
-    <summary class="muted small">Details</summary>
+    <summary class="muted small">Details · <span id="totalCount">0</span> tricks stopped in total</summary>
     <ul id="breakdown" class="breakdown"></ul>
   </details>
 

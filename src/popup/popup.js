@@ -13,6 +13,34 @@
     if (tab && host) api.tabs.reload(tab.id);
   };
 
+  // Ads blocked on this tab: network rules that matched (activeTab grants access when the popup opens).
+  async function countAds() {
+    if (!tab || !host) return null;
+    try {
+      const { rulesMatchedInfo } = await api.declarativeNetRequest.getMatchedRules({ tabId: tab.id });
+      const firstBlock = meta?.firstBlockId ?? 1;
+      return rulesMatchedInfo.filter(({ rule }) =>
+        rule.rulesetId === "blocklist" ||
+        (rule.rulesetId === "easylist" && rule.ruleId >= firstBlock) ||
+        (rule.rulesetId === "_dynamic" && rule.ruleId === 2)
+      ).length;
+    } catch {
+      return null; // unsupported or rate-limited
+    }
+  }
+
+  async function renderPageCounts() {
+    const fmt = (n) => (n == null ? "–" : n.toLocaleString());
+    const [ads, hidden] = await Promise.all([
+      countAds(),
+      host
+        ? api.runtime.sendMessage({ cmd: "countHidden", tabId: tab.id }).then((r) => (r?.ok ? r.value : null), () => null)
+        : null,
+    ]);
+    $("adsCount").textContent = fmt(ads);
+    $("hiddenCount").textContent = fmt(hidden);
+  }
+
   async function render() {
     const settings = await HUSH.getSettings();
     const { stats = {} } = await api.storage.local.get("stats");
@@ -109,4 +137,5 @@
   });
 
   render();
+  renderPageCounts();
 })();

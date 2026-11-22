@@ -13,8 +13,8 @@ body.paused header h1::after { content: " · paused"; font-weight: 400; color: v
 .actions { display: flex; gap: 8px; margin-top: 10px; }
 .actions .primary { flex: 1; }
 
-.counts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.count { display: grid; gap: 2px; padding: 10px 12px; }
+.counts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.count { display: grid; gap: 2px; padding: 10px; }
 .count strong { font-size: 22px; font-variant-numeric: tabular-nums; }
 .count span { font-size: 12px; }
 

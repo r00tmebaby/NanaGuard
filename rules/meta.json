@@ -1,8 +1,9 @@
 {
   "list": "EasyList",
+  "firstBlockId": 517,
   "source": "https://easylist.to/easylist/easylist.txt",
-  "version": "202611221556",
-  "generated": "2026-11-22T16:05:13.616Z",
+  "version": "202611221611",
+  "generated": "2026-11-22T16:22:54.058Z",
   "networkRules": 3821,
   "genericSelectors": 13333,
   "siteSelectors": 10275,

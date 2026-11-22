@@ -269,6 +269,8 @@ const css =
 
 const meta = {
   list: "EasyList",
+  // Rules are sorted exceptions-first, so ids >= firstBlockId are block rules (used by the popup counter).
+  firstBlockId: (ordered.find((r) => r.action.type === "block") || { id: ordered.length + 1 }).id,
   source: SOURCE.startsWith("http") ? SOURCE : path.basename(SOURCE),
   version,
   generated: new Date().toISOString(),

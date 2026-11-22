@@ -7,6 +7,12 @@ if (typeof importScripts === "function") importScripts("/src/common.js");
 
 const MAIN_SCRIPT_ID = "hush-main";
 const COSMETIC_SCRIPT_ID = "hush-cosmetic";
+const YOUTUBE_SCRIPT_ID = "hush-youtube";
+const YOUTUBE_MATCHES = [
+  "*://*.youtube.com/*",
+  "*://youtube.com/*",
+  "*://*.youtube-nocookie.com/*",
+];
 const ALLOW_RULE_ID = 1;
 const USER_BLOCK_RULE_ID = 2;
 const ICON_ON = { 16: "/icons/icon-16.png", 32: "/icons/icon-32.png" };
@@ -53,7 +59,7 @@ async function register(script) {
 async function doApply() {
   const { enabled, ads, allowlist, blocklist } = await HUSH.getSettings();
 
-  const ids = [MAIN_SCRIPT_ID, COSMETIC_SCRIPT_ID];
+  const ids = [MAIN_SCRIPT_ID, COSMETIC_SCRIPT_ID, YOUTUBE_SCRIPT_ID];
   const existing = await api.scripting.getRegisteredContentScripts({ ids });
   if (existing.length) await api.scripting.unregisterContentScripts({ ids: existing.map((s) => s.id) });
 
@@ -78,6 +84,18 @@ async function doApply() {
       runAt: "document_start",
       allFrames: true,
     });
+    const ytAllowed = ["youtube.com", "youtube-nocookie.com"].some((d) => HUSH.isAllowlisted(d, allowlist));
+    if (!ytAllowed) {
+      await register({
+        id: YOUTUBE_SCRIPT_ID,
+        js: ["src/content/youtube.js"],
+        css: ["src/content/youtube.css"],
+        matches: YOUTUBE_MATCHES,
+        runAt: "document_start",
+        allFrames: true,
+        world: "MAIN",
+      });
+    }
   }
 
   const on = [];
@@ -161,6 +179,78 @@ async function hideElement(tab, frameId, selector) {
 
 /* ---------------- counters ---------------- */
 
+// Preferred badge: the browser's own per-tab count of blocked requests (ads), to which we
+// add our own events via tabUpdate. Falls back to a plain badge where unsupported.
+let nativeCount = null;
+async function enableActionCount() {
+  try {
+    await api.declarativeNetRequest.setExtensionActionOptions({ displayActionCountAsBadgeText: true });
+    nativeCount = true;
+  } catch {
+    nativeCount = false;
+  }
+  return nativeCount;
+}
+const hasNativeCount = () => (nativeCount === null ? enableActionCount() : nativeCount);
+
+async function bumpBadge(tabId, total) {
+  if (await hasNativeCount()) {
+    await api.declarativeNetRequest
+      .setExtensionActionOptions({ tabUpdate: { tabId, increment: 1 } })
+      .catch(() => {});
+  } else {
+    const text = total > 999 ? "999+" : String(total);
+    await api.action.setBadgeText({ tabId, text }).catch(() => {});
+  }
+}
+
+/** Counts elements on the page hidden by EasyList / the user's own hiding rules. */
+let genericSelectors = null;
+async function countHidden(tabId) {
+  const tab = await api.tabs.get(tabId);
+  const { enabled, ads, allowlist } = await HUSH.getSettings();
+  const host = HUSH.hostFromUrl(tab.url);
+  if (!enabled || !host || HUSH.isAllowlisted(host, allowlist)) return 0;
+  const selectors = await selectorsFor(host);
+  if (ads) {
+    const { noGenericHide } = await getCosmetic();
+    if (!HUSH.hostAndParents(host).some((d) => noGenericHide.includes(d))) {
+      genericSelectors ||= fetch(api.runtime.getURL("rules/cosmetic-generic.css"))
+        .then((r) => r.text())
+        .then((css) => [...css.matchAll(/^(.+)\{display:none!important\}$/gm)].map((m) => m[1]));
+      selectors.push(...(await genericSelectors));
+    }
+  }
+  const [{ result }] = await api.scripting.executeScript({
+    target: { tabId },
+    args: [selectors],
+    func: (sels) => {
+      const found = new Set();
+      const add = (list) => list.forEach((el) => found.add(el));
+      for (let i = 0; i < sels.length; i += 400) {
+        const chunk = sels.slice(i, i + 400);
+        try {
+          add(document.querySelectorAll(chunk.join(",")));
+        } catch {
+          // One invalid selector breaks the whole list; retry one by one.
+          for (const s of chunk) {
+            try { add(document.querySelectorAll(s)); } catch { /* skip */ }
+          }
+        }
+      }
+      // Count only outermost hidden elements, not their hidden children.
+      let n = 0;
+      for (const el of found) {
+        let p = el.parentElement;
+        while (p && !found.has(p)) p = p.parentElement;
+        if (!p) n++;
+      }
+      return n;
+    },
+  });
+  return result || 0;
+}
+
 let statChain = Promise.resolve();
 function serialize(fn) {
   statChain = statChain.then(fn).catch((e) => console.error("Hush:", e));
@@ -181,15 +271,15 @@ function record(kind, tabId) {
     tabStats[kind] = (tabStats[kind] || 0) + 1;
     tabStats.total = (tabStats.total || 0) + 1;
     await api.storage.session.set({ [key]: tabStats });
-    const text = tabStats.total > 999 ? "999+" : String(tabStats.total);
-    await api.action.setBadgeText({ tabId, text }).catch(() => {});
+    await bumpBadge(tabId, tabStats.total);
   });
 }
 
 function resetTab(tabId) {
   serialize(async () => {
     await api.storage.session.remove(`tab:${tabId}`);
-    await api.action.setBadgeText({ tabId, text: "" }).catch(() => {});
+    // The native action count resets itself on navigation.
+    if (!(await hasNativeCount())) await api.action.setBadgeText({ tabId, text: "" }).catch(() => {});
   });
 }
 
@@ -197,6 +287,7 @@ function resetTab(tabId) {
 
 api.runtime.onInstalled.addListener(async ({ reason }) => {
   await applySettings();
+  await enableActionCount();
   api.action.setBadgeBackgroundColor({ color: "#4f46e5" });
   api.action.setBadgeTextColor?.({ color: "#ffffff" });
   if (reason === "install") {
@@ -206,7 +297,10 @@ api.runtime.onInstalled.addListener(async ({ reason }) => {
   }
 });
 
-api.runtime.onStartup.addListener(() => applySettings());
+api.runtime.onStartup.addListener(() => {
+  applySettings();
+  enableActionCount();
+});
 
 api.storage.onChanged.addListener((changes, area) => {
   if (area === "sync" && (changes.enabled || changes.ads || changes.allowlist || changes.blocklist)) {
@@ -239,6 +333,9 @@ api.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           injectHiding(sender.tab.id, sender.frameId || 0, sels)
         )
       );
+    case "countHidden":
+      if (sender.tab || typeof msg.tabId !== "number") return false; // extension pages only
+      return reply(countHidden(msg.tabId));
     case "hideElement":
       if (!sender.tab) return false;
       return reply(hideElement(sender.tab, sender.frameId || 0, msg.selector));

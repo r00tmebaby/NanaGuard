@@ -116,6 +116,29 @@ const net = await page.evaluate(() =>
 );
 check("ad script blocked at network level", net === "blocked", net);
 
+// Popup counters for the current page
+await page.bringToFront();
+await worker.evaluate(() => chrome.action.openPopup());
+const popupTarget = await browser.waitForTarget((t) => t.url().endsWith("popup/popup.html"), { timeout: 5000 }).catch(() => null);
+if (popupTarget) {
+  const popup = await popupTarget.asPage();
+  await new Promise((r) => setTimeout(r, 1500));
+  const counts = await popup.evaluate(() => ({
+    ads: document.getElementById("adsCount").textContent,
+    hidden: document.getElementById("hiddenCount").textContent,
+    tricks: document.getElementById("tabCount").textContent,
+  }));
+  check("popup shows banners hidden", Number(counts.hidden) >= 1, JSON.stringify(counts));
+  check("popup shows tricks stopped", Number(counts.tricks) >= 5, JSON.stringify(counts));
+  await popup.close();
+} else {
+  check("popup opens", false, "openPopup failed");
+}
+const native = await worker.evaluate(async () => {
+  try { await chrome.declarativeNetRequest.setExtensionActionOptions({ displayActionCountAsBadgeText: true }); return true; } catch { return false; }
+});
+check("native badge counter supported", native);
+
 // Hidden element (what the picker saves) persists across reloads
 await worker.evaluate(async (url) => {
   const host = new URL(url).hostname;

@@ -44,6 +44,8 @@ const refs = [
   ...manifest.declarative_net_request.rule_resources.map((r) => r.path),
   "src/content/main-world.js",
   "src/content/picker.js",
+  "src/content/youtube.js",
+  "src/content/youtube.css",
   "rules/cosmetic.json",
   "rules/cosmetic-generic.css",
   "rules/popup-hosts.json",

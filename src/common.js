@@ -16,6 +16,7 @@ var HUSH = Object.freeze({
     history: "Back-button traps",
     overlay: "Fake warning screens",
     tab: "Ad tabs closed",
+    video: "YouTube ads removed",
   }),
 
   /** Hidden-element store: { "example.com": ["selector", ...] } in storage.local */
