@@ -34,6 +34,8 @@ body.paused header h1::after { content: " · paused"; font-weight: 400; color: v
 .ai-card.level-possible { border-left-color: #fbbf24; }
 .ai-card .label { font-weight: 600; }
 .ai-reasons { margin: 0; padding-left: 18px; font-size: 12px; }
+#lensBtn { width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px; }
+#lensBtn[hidden] { display: none; }
 .smart { font-size: 13px; padding: 8px 12px; }
 .small-btn { padding: 3px 10px; font-size: 12px; }
 

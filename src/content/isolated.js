@@ -49,6 +49,25 @@
   if (isTop) {
     api.runtime.onMessage.addListener((msg) => {
       if (msg && msg.cmd === "showWarning" && WARNINGS[msg.kind]) BlkWarn.show(WARNINGS[msg.kind]);
+      if (msg && msg.cmd === "showInfo") {
+        try {
+          const title = msg.title;
+          const lines = msg.lines;
+          if (typeof title !== "string" || title.length > 200) return;
+          if (!Array.isArray(lines) || lines.length > 6) return;
+          if (!lines.every((l) => typeof l === "string" && l.length <= 400)) return;
+          const level = msg.level === "high" ? "high" : "medium";
+          BlkWarn.show({
+            id: String(msg.id || title),
+            level,
+            title,
+            lines,
+            actions: [{ label: "OK", kind: "primary" }],
+          });
+        } catch {
+          // never throw out of the message handler
+        }
+      }
     });
   }
 

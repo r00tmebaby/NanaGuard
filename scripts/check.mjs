@@ -23,7 +23,9 @@ async function walk(dir) {
 }
 
 // 1. JS syntax
-for (const f of (await walk("src")).filter((f) => f.endsWith(".js"))) {
+// Third-party bundles (src/vendor) are minified/binary-ish: skip syntax and encoding checks there.
+const OWN = (f) => !f.startsWith("src/vendor/");
+for (const f of (await walk("src")).filter((f) => f.endsWith(".js") && OWN(f))) {
   try {
     execFileSync(process.execPath, ["--check", path.join(ROOT, f)], { stdio: "pipe" });
   } catch (e) {
@@ -33,7 +35,7 @@ for (const f of (await walk("src")).filter((f) => f.endsWith(".js"))) {
 
 // 1b. Encoding: UTF-8 text mis-saved as Windows-1252 (an em dash shows up as three odd characters) silently breaks
 // regexes containing non-ASCII characters. Fail loudly.
-for (const f of [...(await walk("src")), ...(await walk("scripts")), "README.md", "CHANGELOG.md", "PRIVACY.md"]) {
+for (const f of [...(await walk("src")).filter(OWN), ...(await walk("scripts")), "README.md", "CHANGELOG.md", "PRIVACY.md"]) {
   if (!/\.(js|mjs|html|css|json|md)$/.test(f)) continue;
   const text = await readFile(path.join(ROOT, f), "utf8");
   // Escaped (U+00E2 U+20AC etc.) so this file doesn't match itself.
@@ -56,6 +58,14 @@ const refs = [
   "src/content/main-world.js",
   "src/content/flags-clickfix-off.js",
   "src/content/youtube-guard.js",
+  "src/ocr/ocr.html",
+  "src/ocr/ocr.js",
+  "src/lens/lens.html",
+  "src/lens/lens.js",
+  "src/vendor/tesseract/tesseract.min.js",
+  "src/vendor/tesseract/worker.min.js",
+  "src/vendor/tesseract/tesseract-core-simd-lstm.wasm.js",
+  "src/vendor/tesseract/eng.traineddata.gz",
   "src/content/picker.js",
   "src/content/youtube.js",
   "src/content/youtube.css",

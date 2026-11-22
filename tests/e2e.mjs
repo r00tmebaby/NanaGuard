@@ -446,6 +446,73 @@ try {
     await g.close();
   }
 
+  /* --- "Real or AI?" free checks --- */
+  // A <video> whose poster frame carries a "Sora" watermark in the bottom-right corner (like real Sora clips).
+  PAGES["/ai-video"] = `<!doctype html><title>Clip</title><body style="margin:0;background:#111">
+    <video id="v" width="960" height="540" style="display:block"></video>
+    <script>const c = document.createElement("canvas"); c.width = 960; c.height = 540; const x = c.getContext("2d");
+      const g = x.createLinearGradient(0, 0, 960, 540); g.addColorStop(0, "#2b4a6f"); g.addColorStop(1, "#c98b5a"); x.fillStyle = g; x.fillRect(0, 0, 960, 540);
+      x.fillStyle = "rgba(255,255,255,.85)"; x.font = "bold 34px Arial"; x.fillText("Sora", 820, 505); x.font = "18px Arial"; x.fillText("@clipmaker", 790, 525);
+      document.getElementById("v").poster = c.toDataURL();</script></body>`;
+  g = await visit(`http://localhost:${port}/ai-video`, 1500);
+  await g.setViewport({ width: 1280, height: 800 }); // whole video on screen (a screenshot only sees what's visible)
+  await sleep(500);
+  await g.bringToFront();
+  const vTabId = await worker.evaluate(async () => (await chrome.tabs.query({ active: true, currentWindow: true }))[0].id);
+  const vRect = await g.evaluate(() => { const r = document.getElementById("v").getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height, dpr: devicePixelRatio }; });
+  const ocr = await worker.evaluate((id, r) => kinguard.ocrVideo(id, r, r.dpr), vTabId, vRect);
+  check("real-or-ai: watermark read from the video frame (local OCR)", /sora/i.test(ocr.text || ""), JSON.stringify((ocr.text || "").slice(0, 80)));
+  const wm = await worker.evaluate(async (id, txt) => {
+    const [{ result }] = await chrome.scripting.executeScript({ target: { tabId: id }, args: [txt], func: (t) => {
+      const a = BlkAI.analyze({ title: "Amazing sunset clip", watermarkText: t });
+      return { level: a.level, hits: BlkAI.watermarkHits(t), reasons: a.reasons };
+    } });
+    return result;
+  }, vTabId, ocr.text || "");
+  check("real-or-ai: Sora watermark → 'likely AI'", wm.level === "likely" && wm.hits.includes("Sora"), JSON.stringify(wm));
+
+  // Lens: "Find where this came from" captures the frame and posts it to Google Lens.
+  let lensPost = null;
+  const lensTabPromise = new Promise((res) => browser.once("targetcreated", res));
+  await worker.evaluate((id, r) => kinguard.lensFrame(id, r, r.dpr), vTabId, vRect);
+  const lensTarget = await Promise.race([lensTabPromise, sleep(5000).then(() => null)]);
+  if (lensTarget) {
+    const lp = await lensTarget.page();
+    await lp.setRequestInterception(true);
+    lp.on("request", (req) => {
+      if (req.url().startsWith("https://lens.google.com/")) { lensPost = { method: req.method(), hasImage: /name="encoded_image"/.test(req.postData() || "") || (req.postData() || "").length > 1000 }; req.abort(); }
+      else req.continue();
+    });
+    await sleep(3000);
+    if (!lensPost) { await lp.reload().catch(() => {}); await sleep(3000); }
+    await lp.close().catch(() => {});
+  }
+  check("real-or-ai: 'Find where this came from' opens Google Lens with the frame", !!lensTarget && (lensPost ? lensPost.method === "POST" : false), JSON.stringify(lensPost));
+  await g.close();
+
+  // Viewer comments + image metadata (unit-level, inside a real page).
+  const ytTab2 = await visit(`http://docs.test:${port}/plain`, 500);
+  const tId2 = await worker.evaluate(async () => (await chrome.tabs.query({ url: "http://docs.test/*" }))[0].id);
+  const units = await worker.evaluate(async (id) => {
+    const [{ result }] = await chrome.scripting.executeScript({ target: { tabId: id }, func: () => {
+      const enc = (s) => new TextEncoder().encode(s);
+      return {
+        viewers: BlkAI.analyze({ title: "Grandma's dog dancing", comments: [...Array(12).fill("this is AI lol"), ...Array(18).fill("so cute")] }).level,
+        viewersFew: BlkAI.analyze({ title: "Grandma's dog dancing", comments: ["so cute", "lovely", "is this real?", "wow", "nice", "great", "haha", "love it"] }).level,
+        iptc: BlkAI.scanImageBytes(enc("...Iptc4xmpExt:DigitalSourceType=http://cv.iptc.org/newscodes/digitalsourcetype/trainedAlgorithmicMedia...")).level,
+        c2pa: BlkAI.scanImageBytes(enc("jumb....c2pa....claim_generator: OpenAI DALL-E")).level,
+        plain: BlkAI.scanImageBytes(enc("\xFF\xD8\xFF\xE0 JFIF ordinary camera photo Canon EOS")).level,
+      };
+    } });
+    return result;
+  }, tId2);
+  await ytTab2.close();
+  check("real-or-ai: many viewers say 'AI' → flagged", units.viewers === "likely", units.viewers);
+  check("real-or-ai: normal comment section not flagged", units.viewersFew === "none", units.viewersFew);
+  check("real-or-ai: image with IPTC 'made by AI' metadata → labelled", units.iptc === "labelled", units.iptc);
+  check("real-or-ai: image with Content Credentials naming an AI generator → likely", units.c2pa === "likely" || units.c2pa === "labelled", units.c2pa);
+  check("real-or-ai: ordinary photo → no AI marks", units.plain === "none", units.plain);
+
   /* --- AI / deepfake videos + fact checks --- */
   const ytTab = await visit(`http://docs.test:${port}/plain`, 500);
   const ytTabId = await worker.evaluate(async () => (await chrome.tabs.query({ url: "http://docs.test/*" }))[0].id);

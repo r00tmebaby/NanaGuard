@@ -22,7 +22,7 @@ var BLK = Object.freeze({
     password: { title: "Password alert", desc: "Warns if you type the password of an important site (bank, email, PayPal…) on a different website. Only a scrambled fingerprint is stored, never the password." },
     clickfix: { title: "Fake 'verify you're human' guard", desc: "Blocks pages that secretly copy a virus command and tell you to press Windows + R and paste it." },
     scam: { title: "Scam request warnings", desc: "Warns when a page asks you to install remote-access apps, pay with gift cards or Bitcoin, or call a 'support' number." },
-    ai: { title: "AI & deepfake video warnings", desc: "Shows YouTube's hidden 'altered or synthetic content' label clearly, and warns about deepfake scam videos (fake celebrity crypto giveaways, miracle cures)." },
+    ai: { title: "Real or AI? checks", desc: "Flags AI-made and deepfake videos and images using platform labels, AI tool names, viewer comments, AI watermarks in the picture (read on your computer) and image Content Credentials. Warns about deepfake scam videos." },
     factcheck: { title: "'Check facts' buttons", desc: "Right-click any text → Check facts, plus a button under YouTube videos. Opens Google, fact-checkers or ChatGPT in a new tab." },
   }),
 

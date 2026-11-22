@@ -2,6 +2,16 @@
 
 All notable changes to KinGuard. Filter-list refreshes published by the weekly CI job bump the patch version and are not listed individually.
 
+## 2.7.0: Is it real or AI?
+New free checks that run on your own computer (no paid services):
+- **AI watermarks in videos:** reads the corners of the video you're watching for AI generator watermarks (Sora, Veo, Kling, Hailuo, Meta AI, Gemini…) with a text-recognition engine bundled in the extension (Tesseract, Apache-2.0). Nothing is uploaded.
+- **What viewers say:** many comments saying "AI" or "fake" now count as a signal.
+- **Images:** right-click → *Is this image real or AI?* reads Content Credentials / IPTC "made with AI" metadata and AI-generator settings.
+- **Where did this come from?** One click sends the current video frame (or a right-clicked image) to Google Lens in a new tab.
+- The AI check works on YouTube (chip under the video) and on any site with video (toolbar popup).
+- Frame capture uses the real screenshot scale, so it works with browser zoom and high-resolution screens.
+- README and store texts now lead with "Is it real or AI?".
+
 ## 2.6.1
 - **Genuine bank and sign-in popups work again.** A real click may now open one window within 5 seconds (same as Chrome's own popup blocker), so bank 3-D Secure checks and "Sign in with…" windows that open after a server round-trip aren't blocked.
 - "Pay with bank" / "Sign in" links that don't navigate anywhere (`href="#"`, `javascript:`) are treated as buttons, so their window is no longer mistaken for a popunder.

@@ -5,6 +5,7 @@
 
 // Chrome service worker loads shared code here; Firefox lists it in manifest.background.scripts.
 if (typeof importScripts === "function") importScripts("/src/common.js");
+if (typeof importScripts === "function") importScripts("/src/content/ai-signals.js");
 
 const ID = { main: "blk-main", generic: "blk-generic", youtube: "blk-youtube", scriptlet: "blk-sl-" };
 const RULE = { allow: 1, userBlock: 2, userBlockPage: 3, learned: 4, securityBase: 1000 };
@@ -482,6 +483,10 @@ async function rebuildMenus() {
   if (!menus) return;
   await menus.removeAll();
   const { enabled, guards } = await BLK.getSettings();
+  if (enabled && guards.ai) {
+    menus.create({ id: "kg-img-check", title: "Is this image real or AI? (KinGuard)", contexts: ["image"] });
+    menus.create({ id: "kg-img-lens", title: "Find where this image came from (Google Lens)", contexts: ["image"] });
+  }
   if (!enabled || !guards.factcheck) return;
   menus.create({ id: "blk", title: "Check facts with KinGuard", contexts: MENU_CONTEXTS });
   for (const [engine, title] of Object.entries(BLK.FACT_ENGINES)) {
@@ -504,11 +509,227 @@ function openCheck(engine, text, pageUrl, tab) {
 }
 
 menus?.onClicked.addListener((info, tab) => {
+  if (info.menuItemId === "kg-img-check" || info.menuItemId === "kg-img-lens") {
+    handleImageMenu(info, tab);
+    return;
+  }
   const engine = String(info.menuItemId).replace(/^blk-/, "");
   // Selected text first, then link text / image alt (Firefox), then the page title.
   const text = info.selectionText || info.linkText || (tab && tab.title) || "";
   openCheck(engine, text, info.pageUrl, tab);
 });
+
+/* ---------------- video frames: local OCR and Google Lens ---------------- */
+
+const OCR_MIN_PX = 40;
+const OCR_EVERY_MS = 8000;
+const ocrLast = new Map(); // tabId -> time the last OCR started
+// Fractions of the captured video frame: [x, y, width, height]. Corners plus a bottom strip,
+// where AI tools usually put their watermark.
+const OCR_REGIONS = [
+  [0, 0, 0.32, 0.24],
+  [0.68, 0, 0.32, 0.24],
+  [0, 0.76, 0.32, 0.24],
+  [0.68, 0.76, 0.32, 0.24],
+  [0.3, 0.82, 0.4, 0.18],
+];
+
+// Screenshot of the visible tab, cropped to the video rect (CSS px, relative to the viewport).
+// Only the active tab can be captured; returns null when not active or too small.
+async function captureVideo(tabId, windowId, rect, dpr, vw) {
+  const tab = await api.tabs.get(tabId);
+  if (!tab.active) return null;
+  const shot = await api.tabs.captureVisibleTab(windowId, { format: "png" });
+  const bitmap = await createImageBitmap(await (await fetch(shot)).blob());
+  try {
+    const r = rect || {};
+    // Prefer the real ratio screenshot-width / page-viewport-width: devicePixelRatio can disagree
+    // with the captured image (browser zoom, emulation), which would crop the wrong area.
+    const scale = Number(vw) > 0 ? bitmap.width / Number(vw) : Number(dpr) > 0 ? Number(dpr) : 1;
+    const fit = (v, max) => Math.max(0, Math.min(max, Math.round(Number(v) || 0)));
+    const x = fit(Number(r.x) * scale, bitmap.width);
+    const y = fit(Number(r.y) * scale, bitmap.height);
+    const w = fit(Number(r.width) * scale, bitmap.width - x);
+    const h = fit(Number(r.height) * scale, bitmap.height - y);
+    if (w < OCR_MIN_PX || h < OCR_MIN_PX) return null;
+    const canvas = new OffscreenCanvas(w, h);
+    canvas.getContext("2d").drawImage(bitmap, x, y, w, h, 0, 0, w, h);
+    return canvas;
+  } finally {
+    bitmap.close?.();
+  }
+}
+
+async function canvasToDataUrl(canvas) {
+  const blob = await canvas.convertToBlob({ type: "image/png" });
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += 8192) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + 8192));
+  }
+  return "data:image/png;base64," + btoa(binary);
+}
+
+// Crops a fractional region of the frame and doubles it for better OCR.
+function upscaledRegion(src, fx, fy, fw, fh) {
+  const sx = Math.round(fx * src.width);
+  const sy = Math.round(fy * src.height);
+  const sw = Math.max(1, Math.round(fw * src.width));
+  const sh = Math.max(1, Math.round(fh * src.height));
+  const out = new OffscreenCanvas(sw * 2, sh * 2);
+  const ctx = out.getContext("2d");
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(src, sx, sy, sw, sh, 0, 0, sw * 2, sh * 2);
+  return out;
+}
+
+// OCR runs in an offscreen document (Chrome) or a hidden iframe on the background page (Firefox).
+async function ensureOcrPage() {
+  if (api.offscreen) {
+    try {
+      if (!(await api.offscreen.hasDocument?.())) {
+        await api.offscreen.createDocument({
+          url: "src/ocr/ocr.html",
+          reasons: ["WORKERS"],
+          justification: "Read AI watermarks in video frames locally",
+        });
+      }
+    } catch (e) {
+      if (!/single offscreen/i.test(String(e && e.message))) throw e;
+    }
+    return;
+  }
+  if (typeof document === "undefined") return;
+  if (document.getElementById("kg-ocr")) return;
+  const frame = document.createElement("iframe");
+  frame.id = "kg-ocr";
+  const loaded = new Promise((resolve) => frame.addEventListener("load", resolve, { once: true }));
+  frame.src = api.runtime.getURL("src/ocr/ocr.html");
+  document.body.appendChild(frame);
+  await loaded;
+}
+
+async function runOcr(dataUrls) {
+  try {
+    await ensureOcrPage();
+    const r = await api.runtime.sendMessage({ target: "kinguard-ocr", images: dataUrls });
+    return r && r.ok ? String(r.text || "") : "";
+  } catch {
+    return "";
+  }
+}
+
+async function ocrVideo(tabId, rect, dpr, vw) {
+  const { enabled, guards } = await BLK.getSettings();
+  if (!enabled || !guards.ai) return { text: "" };
+  if (Date.now() - (ocrLast.get(tabId) || 0) < OCR_EVERY_MS) return { text: "" };
+  ocrLast.set(tabId, Date.now());
+  const tab = await api.tabs.get(tabId);
+  const frame = await captureVideo(tabId, tab.windowId, rect, dpr, vw);
+  if (!frame) return { text: "" };
+  const urls = [];
+  for (const [fx, fy, fw, fh] of OCR_REGIONS) {
+    urls.push(await canvasToDataUrl(upscaledRegion(frame, fx, fy, fw, fh)));
+  }
+  return { text: await runOcr(urls) };
+}
+
+async function lensFrame(tabId, rect, dpr, vw) {
+  const tab = await api.tabs.get(tabId);
+  const frame = await captureVideo(tabId, tab.windowId, rect, dpr, vw);
+  if (!frame) return false;
+  await api.storage.session.set({ lensImage: await canvasToDataUrl(frame) });
+  await api.tabs.create({
+    url: api.runtime.getURL("src/lens/lens.html"),
+    index: tab.index + 1,
+    openerTabId: tab.id,
+  });
+  return true;
+}
+
+/* ---------------- image context menu: AI check and Google Lens ---------------- */
+
+const IMG_MAX_BYTES = 15 * 1024 * 1024;
+const IMG_TIMEOUT_MS = 15000;
+const IMAGE_VERDICTS = {
+  labelled: "This image says it was made with AI",
+  likely: "This image is probably AI-made",
+  possible: "This image may be AI-made",
+};
+
+async function fetchImageBytes(src) {
+  if (!/^(https?:|data:)/i.test(src)) return null;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), IMG_TIMEOUT_MS);
+  try {
+    const res = await fetch(src, { signal: ctrl.signal, credentials: "omit" });
+    if (!res.ok) return null;
+    if (Number(res.headers.get("content-length")) > IMG_MAX_BYTES) return null;
+    const buf = await res.arrayBuffer();
+    return buf.byteLength <= IMG_MAX_BYTES ? buf : null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function checkImage(info, tab) {
+  if (!tab) return;
+  const showCard = (card) => api.tabs
+    .sendMessage(tab.id, { cmd: "showInfo", id: "img-" + Date.now(), ...card }, { frameId: 0 })
+    .catch(() => {});
+  const buf = await fetchImageBytes(String(info.srcUrl || ""));
+  if (!buf) {
+    return showCard({
+      level: "medium",
+      title: "Couldn't check this image",
+      lines: ["The website did not allow KinGuard to read the image file."],
+    });
+  }
+  const result = BlkAI.scanImageBytes(new Uint8Array(buf));
+  const level = result && result.level ? result.level : "none";
+  if (level === "none") {
+    return showCard({
+      level: "medium",
+      title: "No AI marks found in this image",
+      lines: [
+        "The file has no AI labels or generator data. That does not prove it is real: many AI images have this information removed.",
+        "Tip: right-click the image again and choose \"Find where this image came from\".",
+      ],
+    });
+  }
+  record("ailabel", tab.id);
+  const reasons = Array.isArray(result.reasons) && result.reasons.length
+    ? result.reasons
+    : ["KinGuard found AI signals in this image."];
+  return showCard({
+    level: "high",
+    title: IMAGE_VERDICTS[level] || IMAGE_VERDICTS.possible,
+    lines: reasons,
+  });
+}
+
+async function openImageLens(info, tab) {
+  const src = String(info.srcUrl || "");
+  const props = {};
+  if (tab) {
+    props.index = tab.index + 1;
+    props.openerTabId = tab.id;
+  }
+  if (/^https?:\/\//i.test(src)) {
+    await api.tabs.create({ ...props, url: "https://lens.google.com/uploadbyurl?url=" + encodeURIComponent(src) });
+  } else if (/^data:/i.test(src)) {
+    await api.storage.session.set({ lensImage: src });
+    await api.tabs.create({ ...props, url: api.runtime.getURL("src/lens/lens.html") });
+  }
+}
+
+function handleImageMenu(info, tab) {
+  const run = info.menuItemId === "kg-img-lens" ? openImageLens : checkImage;
+  return run(info, tab).catch((e) => console.error("KinGuard image:", e));
+}
 
 /* ---------------- events ---------------- */
 
@@ -590,6 +811,17 @@ api.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     case "factCheck":
       // From the YouTube button (page) or the popup; only builds our own search URLs.
       return reply(openCheck(msg.engine, msg.text, msg.url, sender.tab));
+    case "ocrVideo": {
+      // Content scripts pass their own tab; extension pages (popup) pass msg.tabId.
+      const tabId = sender.tab ? sender.tab.id : msg.tabId;
+      if (typeof tabId !== "number") return false;
+      return reply(ocrVideo(tabId, msg.rect, msg.dpr, msg.vw).catch(() => ({ text: "" })));
+    }
+    case "lensFrame": {
+      const tabId = sender.tab ? sender.tab.id : msg.tabId;
+      if (typeof tabId !== "number") return false;
+      return reply(lensFrame(tabId, msg.rect, msg.dpr, msg.vw));
+    }
     case "closeTab":
       if (!sender.tab) return false;
       return reply(api.tabs.remove(sender.tab.id));
@@ -667,4 +899,4 @@ api.tabs.onRemoved.addListener((tabId) => {
 });
 
 // Expose for tests/debugging in the service worker console.
-globalThis.kinguard = { applySettings, cosmeticFor, learn, getMeta, officialSite, updateMenus, openCheck };
+globalThis.kinguard = { applySettings, cosmeticFor, learn, getMeta, officialSite, updateMenus, openCheck, ocrVideo, lensFrame, checkImage };

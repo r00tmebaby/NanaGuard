@@ -2,9 +2,9 @@
 
 # KinGuard
 
-### A free browser extension that blocks ads and protects you from online scams
+### Is it real or AI? Is it a scam? KinGuard tells you.
 
-Made for people who just want the internet to be safe and calm, like your parents or grandparents. Install it once and it works on its own.
+A free browser extension that spots AI-made and deepfake videos, warns you about fake websites and scams, and blocks ads. Made for people who just want the internet to be safe and calm, like your parents or grandparents. Install it once and it works on its own.
 
 [![Build](https://github.com/r00tmebaby/KinGuard/actions/workflows/release.yml/badge.svg)](https://github.com/r00tmebaby/KinGuard/actions/workflows/release.yml)
 [![Tests](https://img.shields.io/github/actions/workflow/status/r00tmebaby/KinGuard/release.yml?branch=main&label=tests)](https://github.com/r00tmebaby/KinGuard/actions/workflows/release.yml)
@@ -33,7 +33,27 @@ Made for people who just want the internet to be safe and calm, like your parent
 
 ---
 
-## What it does
+## Is it real or AI?
+
+Today most people can't tell what's real, what's fake and what's made by AI. KinGuard checks for you, **for free, on your own computer**:
+
+<img src="docs/screenshots/real-or-ai.png" alt="KinGuard: This video is probably AI-generated - AI watermark visible in the video: Sora" width="380" align="right">
+
+- **AI watermarks in the picture:** reads the corners of the video you're watching for AI generator watermarks (Sora, Veo, Kling, Hailuo, Meta AI, Gemini…). The text recognition runs inside your browser; nothing is uploaded.
+- **Platform AI labels:** shows the "AI-generated" labels that YouTube, TikTok and Meta often hide.
+- **What the video says about itself:** AI tool names (Sora, Veo, Seedance, Runway…), "made with AI" wording and AI hashtags.
+- **What viewers say:** when many commenters say a video is AI or fake, you'll know.
+- **Image Content Credentials:** right-click any image and choose *Is this image real or AI?* to read the tamper-proof "made with AI" record that OpenAI, Adobe, Google and others embed.
+- **Where did this come from?** One click sends the video frame or image to Google Lens, to find the original, the creator, or a fact-check.
+- **Deepfake scam warnings:** fake celebrities promoting crypto giveaways, "investment platforms" or miracle cures are paused before you send anything.
+
+On YouTube a chip under the video says *Likely AI-generated*, *AI-generated (labelled)* or *Possible deepfake scam*, with the reasons. On any other site, open the KinGuard icon for the **AI check**.
+
+<sub>These checks find the signs that AI content leaves behind. They can't prove a video is real: an AI video with no label, no watermark and no clues can still slip through, and no tool can be certain from the pixels alone.</sub>
+
+<br clear="right">
+
+## What else it does
 
 **Blocks ads, trackers and popups**: including YouTube ads, cookie banners and "Subscribe now / special offer / No thanks" boxes, which are closed for you automatically.
 
@@ -45,9 +65,7 @@ Made for people who just want the internet to be safe and calm, like your parent
 - Shows a clear warning before opening **known malware and phishing sites**
 - Stops fake **"Your PC is infected"** screens, alert loops and notification spam
 
-**Spots AI fakes and checks facts**
-- **Flags AI-generated videos**, even when the uploader didn't use the platform's label: it reads AI tool names (Sora, Veo, Seedance, Kling, Runway…), "AI-generated" phrases, AI hashtags and platform labels (YouTube, TikTok, Meta). On YouTube a chip under the video says *Likely AI-generated*, *AI-generated (labelled)* or *Possible deepfake scam*, with reasons. On any other site the toolbar popup shows an **AI check**. These are signals from the page, not a pixel scan, so no extension can be certain from pixels alone.
-- Warns about **deepfake scam videos**: fake celebrities promoting crypto giveaways, "investment platforms" or miracle cures
+**Checks facts**
 - **Check facts** in one click: right-click any text, use the buttons under YouTube videos, or open the toolbar popup. Choose **Other news sources** (is anyone else reporting it?), **Fact-checkers** (claims already reviewed by professionals), **ChatGPT** or **Google**, each opening in a new tab. Brand-new stories usually have no fact-check yet, so for news, "other sources" is the best first check.
 
 **Learns as you browse**: it spots ads no list knows about (the "Ad" and "Sponsored" labels, standard banner sizes), remembers them, and blocks an ad company everywhere once it has seen it on 3 different sites.
@@ -60,12 +78,15 @@ Made for people who just want the internet to be safe and calm, like your parent
 
 <table>
 <tr>
+<td width="50%" valign="top"><img src="docs/screenshots/real-or-ai.png" alt="Real or AI check in the KinGuard popup"><br><sub><b>Real or AI?</b>: AI watermark found in the video, with a one-click source search.</sub></td>
+<td width="50%"><img src="docs/screenshots/warning-deepfake.png" alt="Deepfake scam warning"><br><sub><b>Deepfake scam video</b>: the video is paused before you send anything.</sub></td>
+</tr>
+<tr>
 <td width="50%"><img src="docs/screenshots/warning-fake-site.png" alt="Fake website warning"><br><sub><b>Fake website</b>: you're told where the real site is.</sub></td>
 <td width="50%"><img src="docs/screenshots/danger-page.png" alt="Dangerous site page"><br><sub><b>Dangerous site</b>: stopped before it loads.</sub></td>
 </tr>
 <tr>
-<td><img src="docs/screenshots/warning-deepfake.png" alt="Deepfake scam warning"><br><sub><b>Deepfake scam video</b>: the video is paused before you send anything.</sub></td>
-<td valign="top"><img src="docs/screenshots/youtube-check-facts.png" alt="Check facts buttons on YouTube"><br><sub><b>Check facts</b>: one click under any YouTube video.</sub></td>
+<td colspan="2" align="center"><img src="docs/screenshots/youtube-check-facts.png" alt="Check facts buttons on YouTube"><br><sub><b>Check facts</b>: one click under any YouTube video.</sub></td>
 </tr>
 <tr>
 <td><img src="docs/screenshots/settings-protection.png" alt="Protection settings"><br><sub><b>Settings → Protection</b>: switch each protection on or off.</sub></td>

@@ -4,6 +4,8 @@
  *  2. Deepfake scam videos – famous name + crypto giveaway / "double your coins" / miracle
  *     cure patterns (the AI fakes that actually cost people money) get a warning.
  *  3. "Check facts" button under the title → Google / fact-checkers / ChatGPT in a new tab.
+ *     Also "Find source" (Google Lens on the current frame, via the background) and watermark
+ *     OCR + viewer comments fed into the AI signals.
  * Pixel-level deepfake detection is not attempted: it isn't reliable enough to show users. */
 // eslint-disable-next-line no-var
 var BlkYouTube = (() => {
@@ -58,13 +60,14 @@ var BlkYouTube = (() => {
 
   /* Heuristic AI signals from ai-signals.js (optional global; the chip and banner degrade to
    * "no signal" if it failed to load). forcedLabel = YouTube's own label was found in page data. */
-  function analyzeAi(ctx, forcedLabel) {
+  function analyzeAi(ctx, forcedLabel, watermarkText = "") {
     let res = { level: "none", reasons: [], tools: [] };
     if (typeof BlkAI !== "undefined" && BlkAI && typeof BlkAI.analyze === "function") {
       try {
         const out = BlkAI.analyze({
           title: ctx.title, description: ctx.description, keywords: [], channel: ctx.channel,
           platformText: ctx.labelText, host: location.hostname,
+          comments: ctx.comments || [], watermarkText: watermarkText || "",
         });
         if (out && typeof out === "object") {
           res = {
@@ -99,7 +102,14 @@ var BlkYouTube = (() => {
     if (player) labelText += "\n" + player.textContent;
     const reel = document.querySelector("ytd-reel-video-renderer[is-active]");
     if (reel) labelText += "\n" + reel.textContent;
-    return { title, description, channel, live, labelText };
+    // Viewer comments (YouTube loads them only after scrolling; the throttled re-check picks them up).
+    const comments = [];
+    for (const el of document.querySelectorAll("ytd-comment-thread-renderer #content-text")) {
+      if (comments.length >= 150) break;
+      const t = (el.textContent || "").trim().slice(0, 300);
+      if (t) comments.push(t);
+    }
+    return { title, description, channel, live, labelText, comments };
   }
   function initialDataHasLabel(id) {
     for (const s of document.scripts) {
@@ -131,7 +141,7 @@ var BlkYouTube = (() => {
     statusEl.hidden = false;
     statusEl.className = "s " + s.cls;
     statusEl.textContent = s.text;
-    statusEl.title = why + " (based on the video's title, description and labels — not a pixel scan)";
+    statusEl.title = why + " (based on the video's title, description, labels, viewer comments and watermark text — not a pixel scan)";
   }
 
   function addCheckButton(showStatus = false, showButtons = true) {
@@ -148,8 +158,10 @@ var BlkYouTube = (() => {
       button:hover{background:#e0e7ff}
       .s{font:600 12px/1 system-ui,Roboto,sans-serif;border-radius:999px;padding:7px 10px;white-space:nowrap;margin-right:6px;cursor:help}
       .s[hidden]{display:none}
+      .sep{width:1px;align-self:stretch;min-height:20px;background:#c7d2fe;margin:0 4px}
       .ai{background:#fef3c7;color:#92400e}.maybe{background:#fff7ed;color:#9a3412}.scam{background:#fee2e2;color:#991b1b}
       @media (prefers-color-scheme: dark){button{background:#1e1b4b;color:#c7d2fe;border-color:#3730a3}.t{color:#9ca3af}
+        .sep{background:#3730a3}
         .ai{background:#3a2a07;color:#fcd34d}.maybe{background:#2a1a05;color:#fdba74}.scam{background:#450a0a;color:#fca5a5}}`;
     const row = document.createElement("div");
     row.className = "row";
@@ -178,6 +190,29 @@ var BlkYouTube = (() => {
       });
       row.append(b);
     }
+    // "Find source": only the background can capture the video frame, so this goes through it.
+    const sep = document.createElement("span");
+    sep.className = "sep";
+    row.append(sep);
+    const find = document.createElement("button");
+    find.append(BLK.icon("google", 15), "Find source");
+    find.title = "Search Google Lens for where this video frame comes from (opens a new tab)";
+    find.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      try {
+        const v = document.querySelector("#movie_player video");
+        if (!v) return;
+        const r = v.getBoundingClientRect();
+        api.runtime.sendMessage({
+          cmd: "lensFrame",
+          rect: { x: r.x, y: r.y, width: r.width, height: r.height },
+          dpr: window.devicePixelRatio,
+          vw: window.innerWidth,
+        }).catch(() => {});
+      } catch { /* extension reloaded or frame unavailable */ }
+    });
+    row.append(find);
     host.append(el);
   }
 
@@ -192,6 +227,39 @@ var BlkYouTube = (() => {
     const labelled = new Set();
     document.addEventListener("kinguard:ailabel", (e) => { labelled.add(String(e.detail || videoId())); setTimeout(check, 0); });
     let shownFor = "";
+    // Watermark OCR per video: text read from the frame corners (AI tool watermarks such as Sora/Veo logos).
+    const ocr = new Map();
+    const ocrEntry = (id) => {
+      let entry = ocr.get(id);
+      if (!entry) { entry = { text: "", tries: 0, at: 0 }; ocr.set(id, entry); }
+      return entry;
+    };
+    // Runs OCR only while the tab is visible, the video plays past its first seconds and no ad shows.
+    const maybeOcr = (id) => {
+      try {
+        const entry = ocrEntry(id);
+        if (document.visibilityState !== "visible") return;
+        if (document.querySelector("#movie_player.ad-showing")) return;
+        const v = document.querySelector("#movie_player video");
+        if (!v || !(v.currentTime > 3) || v.paused) return;
+        if (entry.tries >= 2 || Date.now() - entry.at <= 12000) return;
+        entry.tries++;
+        entry.at = Date.now();
+        const r = v.getBoundingClientRect();
+        api.runtime.sendMessage({
+          cmd: "ocrVideo",
+          rect: { x: r.x, y: r.y, width: r.width, height: r.height },
+          dpr: window.devicePixelRatio,
+          vw: window.innerWidth,
+        }).then((res) => {
+          if (res && res.ok && res.value && res.value.text) {
+            entry.text += "\n" + res.value.text;
+            memo.delete(id);
+            setTimeout(check, 0);
+          }
+        }).catch(() => {});
+      } catch { /* OCR is best-effort */ }
+    };
 
     const check = () => {
       if (guards.factcheck || guards.ai) addCheckButton(guards.ai, guards.factcheck);
@@ -200,14 +268,17 @@ var BlkYouTube = (() => {
       if (!id) return;
       const ctx = context();
       if (!ctx.title) return;
-      const key = id + "|" + ctx.title + "|" + ctx.channel + "|" + ctx.description.length + "|" + ctx.labelText.length + "|" + ctx.live + "|" + labelled.has(id);
+      maybeOcr(id);
+      const watermarkText = ocrEntry(id).text;
+      const key = id + "|" + ctx.title + "|" + ctx.channel + "|" + ctx.description.length + "|" + ctx.labelText.length + "|" + ctx.live + "|" + labelled.has(id)
+        + "|c" + ctx.comments.length + "|w" + watermarkText.length;
       if (memo.get(id) === key && shownFor === id) return;
       memo.set(id, key);
       shownFor = id;
 
       const verdict = assess(ctx);
       const initLabel = initCache.has(id) ? initCache.get(id) : (initCache.set(id, initialDataHasLabel(id)), initCache.get(id));
-      const ai = analyzeAi(ctx, labelled.has(id) || hasAiLabel(ctx.labelText) || initLabel);
+      const ai = analyzeAi(ctx, labelled.has(id) || hasAiLabel(ctx.labelText) || initLabel, watermarkText);
       if (verdict.flagged) setStatus("scam", [`Uses ${verdict.celeb}'s name to promote ${scamTarget(verdict.kind)}`]);
       else setStatus(ai.level, ai.reasons);
 

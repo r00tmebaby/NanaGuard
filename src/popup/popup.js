@@ -183,6 +183,25 @@
       const descriptionExtra = isYouTube
         ? (document.querySelector("ytd-watch-metadata #description")?.innerText || "").slice(0, LIMIT)
         : "";
+      const comments = isYouTube
+        ? Array.from(document.querySelectorAll("ytd-comment-thread-renderer #content-text"))
+            .slice(0, 150)
+            .map((el) => (el.innerText || "").trim())
+            .filter(Boolean)
+        : [];
+      // Largest visible <video> on the page, if it is big enough to be worth checking.
+      let videoRect = null;
+      let bestArea = 0;
+      for (const v of document.querySelectorAll("video")) {
+        const r = v.getBoundingClientRect();
+        const visible = r.width > 0 && r.height > 0 && r.bottom > 0 && r.right > 0 && r.top < innerHeight && r.left < innerWidth;
+        const area = r.width * r.height;
+        if (visible && area > bestArea) {
+          bestArea = area;
+          videoRect = { x: r.x, y: r.y, width: r.width, height: r.height };
+        }
+      }
+      if (bestArea <= 40000) videoRect = null;
       return {
         hasVideo: !!document.querySelector("video"),
         title: document.title || "",
@@ -190,18 +209,98 @@
         keywords: content('meta[name="keywords"]'),
         platformText,
         descriptionExtra,
+        comments,
+        videoRect,
+        dpr: window.devicePixelRatio || 1,
+        vw: window.innerWidth,
       };
     } catch {
       return {};
     }
   }
 
+  const AI_TITLES = {
+    labelled: "AI-generated (labelled by the platform)",
+    likely: "This video is probably AI-generated",
+    possible: "This may contain AI-generated content",
+  };
+
+  // Shows the AI card. checking=true keeps it visible (with a "Checking..." line) while the watermark OCR runs.
+  function renderAi(result, checking) {
+    const card = $("aiCard");
+    const level = result && result.level && result.level !== "none" ? result.level : "none";
+    card.classList.remove("level-labelled", "level-likely", "level-possible");
+    if (level === "none" && !checking) {
+      card.hidden = true;
+      return;
+    }
+    if (level !== "none") card.classList.add("level-" + level);
+    $("aiTitle").textContent = level === "none" ? "Checking this video..." : (AI_TITLES[level] || AI_TITLES.possible);
+    const reasons = level === "none" ? [] : (result.reasons || []);
+    $("aiReasons").replaceChildren(
+      ...reasons.map((text) => {
+        const li = document.createElement("li");
+        li.textContent = text;
+        return li;
+      })
+    );
+    $("aiChecking").hidden = !checking;
+    card.hidden = false;
+  }
+
+  // Page viewport width (CSS px) from the collector; lets the background compute the exact capture scale.
+  let viewportWidth = 0;
+
+  // "Find where this video came from": captures the video frame and opens Google Lens with it.
+  function showLens(rect, dpr) {
+    const btn = $("lensBtn");
+    btn.prepend(BLK.icon("google", 16));
+    btn.addEventListener("click", async () => {
+      try {
+        await api.runtime.sendMessage({ cmd: "lensFrame", tabId: tab.id, rect, dpr, vw: viewportWidth });
+      } catch {
+        /* ignore, the popup closes either way */
+      }
+      window.close();
+    });
+    btn.hidden = false;
+  }
+
+  async function runAiCheck(data, videoRect, dpr) {
+    const { enabled, guards } = await BLK.getSettings();
+    if (!enabled || !guards.ai || typeof BlkAI === "undefined") return;
+    const isVideoPlatform = /(^|\.)(youtube|tiktok|instagram|facebook)\.com$/.test(host);
+    if (!data.hasVideo && !isVideoPlatform) return;
+
+    const input = {
+      title: data.title || "",
+      description: (data.description || "") + " " + (data.descriptionExtra || ""),
+      keywords: data.keywords ? [data.keywords] : [],
+      platformText: data.platformText || "",
+      comments: Array.isArray(data.comments) ? data.comments : [],
+      host,
+    };
+    const result = BlkAI.analyze(input);
+    if (!videoRect) {
+      renderAi(result, false);
+      return;
+    }
+
+    renderAi(result, true);
+    let text = "";
+    try {
+      const reply = await api.runtime.sendMessage({ cmd: "ocrVideo", tabId: tab.id, rect: videoRect, dpr, vw: viewportWidth });
+      if (reply && reply.ok && reply.value && typeof reply.value.text === "string") text = reply.value.text;
+    } catch {
+      /* OCR unavailable: keep the page-only result */
+    }
+    const final = text.trim() ? BlkAI.analyze({ ...input, watermarkText: text }) : result;
+    renderAi(final, false);
+  }
+
   (async () => {
     try {
       if (!tab || !host || !/^https?:/.test(tab.url || "")) return;
-      const { enabled, guards } = await BLK.getSettings();
-      if (!enabled || !guards.ai || typeof BlkAI === "undefined") return;
-
       let data;
       try {
         const [injection] = await api.scripting.executeScript({ target: { tabId: tab.id }, func: collectAiSignals });
@@ -210,34 +309,11 @@
         return; // restricted page
       }
       if (!data) return;
-      const isVideoPlatform = /(^|\.)(youtube|tiktok|instagram|facebook)\.com$/.test(host);
-      if (!data.hasVideo && !isVideoPlatform) return;
-
-      const result = BlkAI.analyze({
-        title: data.title || "",
-        description: (data.description || "") + " " + (data.descriptionExtra || ""),
-        keywords: data.keywords ? [data.keywords] : [],
-        platformText: data.platformText || "",
-        host,
-      });
-      if (!result || !result.level || result.level === "none") return;
-
-      const TITLES = {
-        labelled: "AI-generated (labelled by the platform)",
-        likely: "This video is probably AI-generated",
-        possible: "This may contain AI-generated content",
-      };
-      const card = $("aiCard");
-      card.classList.add("level-" + result.level);
-      $("aiTitle").textContent = TITLES[result.level] || TITLES.possible;
-      $("aiReasons").replaceChildren(
-        ...(result.reasons || []).map((text) => {
-          const li = document.createElement("li");
-          li.textContent = text;
-          return li;
-        })
-      );
-      card.hidden = false;
+      const videoRect = data.videoRect || null;
+      const dpr = data.dpr || 1;
+      viewportWidth = Number(data.vw) || 0;
+      if (videoRect) showLens(videoRect, dpr);
+      await runAiCheck(data, videoRect, dpr);
     } catch {
       /* never break the popup */
     }

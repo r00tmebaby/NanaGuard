@@ -28,6 +28,8 @@ foreach ($target in "chrome", "firefox") {
   } else {
     $m.background.PSObject.Properties.Remove("service_worker")
     $m.PSObject.Properties.Remove("minimum_chrome_version")
+    # Firefox has no offscreen API (OCR runs in an iframe of its background page instead).
+    $m.permissions = @($m.permissions | Where-Object { $_ -ne "offscreen" })
   }
   [IO.File]::WriteAllText((Join-Path $dir "manifest.json"), ($m | ConvertTo-Json -Depth 20), $utf8)
 
