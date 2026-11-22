@@ -195,22 +195,46 @@ var BlkYouTube = (() => {
     sep.className = "sep";
     row.append(sep);
     const find = document.createElement("button");
-    find.append(BLK.icon("google", 15), "Find source");
+    const findLabel = document.createTextNode("Find source");
+    find.append(BLK.icon("google", 15), findLabel);
     find.title = "Search Google Lens for where this video frame comes from (opens a new tab)";
-    find.addEventListener("click", (e) => {
+    let busy = false;
+    const say = (text, ms = 2500) => {
+      findLabel.textContent = text;
+      setTimeout(() => { findLabel.textContent = "Find source"; }, ms);
+    };
+    // Fallback that needs neither a screenshot nor the extension background: YouTube's own
+    // thumbnail of this video, sent to Lens by URL. Used when capture is impossible (extension
+    // updated while this tab stayed open, or site access limited to "on click").
+    const openThumbnailInLens = () => {
+      const id = videoId();
+      if (!id) return false;
+      const thumb = `https://i.ytimg.com/vi/${encodeURIComponent(id)}/hqdefault.jpg`;
+      window.open("https://lens.google.com/uploadbyurl?url=" + encodeURIComponent(thumb), "_blank", "noopener");
+      return true;
+    };
+    find.addEventListener("click", async (e) => {
       e.preventDefault();
       e.stopPropagation();
+      if (busy) return;
+      busy = true;
+      say("Opening Google Lens…", 4000);
+      let opened = false;
       try {
         const v = document.querySelector("#movie_player video");
-        if (!v) return;
-        const r = v.getBoundingClientRect();
-        api.runtime.sendMessage({
-          cmd: "lensFrame",
-          rect: { x: r.x, y: r.y, width: r.width, height: r.height },
-          dpr: window.devicePixelRatio,
-          vw: window.innerWidth,
-        }).catch(() => {});
-      } catch { /* extension reloaded or frame unavailable */ }
+        if (v && api.runtime && api.runtime.id) {
+          const r = v.getBoundingClientRect();
+          const res = await api.runtime.sendMessage({
+            cmd: "lensFrame",
+            rect: { x: r.x, y: r.y, width: r.width, height: r.height },
+            dpr: window.devicePixelRatio,
+            vw: window.innerWidth,
+          });
+          opened = !!(res && res.ok && res.value);
+        }
+      } catch { /* extension reloaded, capture refused, or frame unavailable */ }
+      if (!opened && !openThumbnailInLens()) say("Couldn't open Google Lens");
+      busy = false;
     });
     row.append(find);
     host.append(el);

@@ -2,6 +2,11 @@
 
 All notable changes to KinGuard. Filter-list refreshes published by the weekly CI job bump the patch version and are not listed individually.
 
+## 2.7.1
+- **"Find source" on YouTube is reliable:** shows "Opening Google Lens…" when clicked, and if the video frame can't be captured (KinGuard was updated while the tab was open, or site access is set to "on click") it searches YouTube's thumbnail of the video instead.
+- **Update notice for manual installs:** if you loaded KinGuard yourself (not from a store), it checks GitHub once a day and shows "New version available" in the popup and Settings, with download links and update steps. Store installs update automatically and skip this.
+- Author shown in the extension details and the Settings footer.
+
 ## 2.7.0: Is it real or AI?
 New free checks that run on your own computer (no paid services):
 - **AI watermarks in videos:** reads the corners of the video you're watching for AI generator watermarks (Sora, Veo, Kling, Hailuo, Meta AI, Gemini…) with a text-recognition engine bundled in the extension (Tesseract, Apache-2.0). Nothing is uploaded.

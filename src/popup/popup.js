@@ -319,6 +319,18 @@
     }
   })();
 
+  // New version notice (manual installs only; store installs update themselves).
+  api.runtime.sendMessage({ cmd: "checkUpdate" }).then((res) => {
+    const info = res && res.ok ? res.value : null;
+    if (!info || !info.version) return;
+    $("updateVersion").textContent = info.version;
+    $("updateBanner").hidden = false;
+    $("updateBtn").addEventListener("click", () => {
+      api.tabs.create({ url: api.runtime.getURL("src/options/options.html#update") });
+      window.close();
+    });
+  }).catch(() => {});
+
   $("grant").addEventListener("click", async () => {
     if (await api.permissions.request(ALL_SITES)) await applyAndReload();
     render();

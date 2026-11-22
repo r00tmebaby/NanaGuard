@@ -171,8 +171,26 @@
       </div>
     </section>
 
+    <section class="card" id="updateCard">
+      <div class="row">
+        <div>
+          <h2>Updates</h2>
+          <p class="muted" id="updateStatus">Checking for a new version…</p>
+        </div>
+        <button id="checkUpdate" class="btn">Check now</button>
+      </div>
+      <div id="updateHow" hidden>
+        <p><b>How to update</b> (you installed KinGuard yourself, so it can't update on its own):</p>
+        <ol class="muted">
+          <li>Download the new zip: <a id="dlChrome" href="#" target="_blank" rel="noopener">Chrome / Edge</a> · <a id="dlFirefox" href="#" target="_blank" rel="noopener">Firefox</a> · <a id="dlPage" href="#" target="_blank" rel="noopener">release notes</a></li>
+          <li>Unzip it <b>into the same folder</b> as before, replacing the old files. Your settings are kept.</li>
+          <li>Open <code>chrome://extensions</code> and click the reload button on KinGuard.</li>
+        </ol>
+      </div>
+    </section>
+
     <footer class="muted">
-      <span id="version"></span> · No data leaves your browser.
+      <span id="version"></span> · Made by <a href="https://github.com/r00tmebaby" target="_blank" rel="noopener">r00tmebaby</a> · No data leaves your browser.
     </footer>
   </main>
   <script src="../common.js"></script>

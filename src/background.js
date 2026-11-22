@@ -731,6 +731,57 @@ function handleImageMenu(info, tab) {
   return run(info, tab).catch((e) => console.error("KinGuard image:", e));
 }
 
+/* ---------------- update notice (manual installs only) ---------------- */
+
+// Store installs are updated by the browser. Manually loaded copies (unpacked / temporary add-on)
+// can't update themselves, so at most once a day KinGuard asks GitHub for the latest release and
+// shows "new version available" in the popup and Settings. Nothing about the user is sent.
+const RELEASES_API = "https://api.github.com/repos/r00tmebaby/KinGuard/releases/latest";
+const UPDATE_EVERY_MS = 20 * 60 * 60 * 1000;
+
+function isNewer(latest, current) {
+  const a = String(latest).split(".").map((n) => parseInt(n, 10) || 0);
+  const b = String(current).split(".").map((n) => parseInt(n, 10) || 0);
+  for (let i = 0; i < Math.max(a.length, b.length); i++) {
+    if ((a[i] || 0) !== (b[i] || 0)) return (a[i] || 0) > (b[i] || 0);
+  }
+  return false;
+}
+
+async function isManualInstall() {
+  try {
+    const self = api.management && api.management.getSelf ? await api.management.getSelf() : null;
+    return !self || self.installType !== "normal";
+  } catch {
+    return true;
+  }
+}
+
+async function checkForUpdate(force = false) {
+  try {
+    if (!(await isManualInstall())) return null;
+    const { updateCheckedAt = 0, updateInfo = null } = await api.storage.local.get(["updateCheckedAt", "updateInfo"]);
+    const current = api.runtime.getManifest().version;
+    if (!force && Date.now() - updateCheckedAt < UPDATE_EVERY_MS) {
+      return updateInfo && isNewer(updateInfo.version, current) ? updateInfo : null;
+    }
+    await api.storage.local.set({ updateCheckedAt: Date.now() });
+    const res = await fetch(RELEASES_API, { headers: { Accept: "application/vnd.github+json" }, cache: "no-store", credentials: "omit" });
+    if (!res.ok) return null; // e.g. 404 while the repository is private
+    const rel = await res.json();
+    const version = String(rel.tag_name || "").replace(/^v/i, "");
+    const asset = (re) => ((rel.assets || []).find((a) => re.test(a.name)) || {}).browser_download_url || "";
+    const info = isNewer(version, current)
+      ? { version, page: String(rel.html_url || ""), chromeZip: asset(/chrome/i), firefoxZip: asset(/firefox/i) }
+      : null;
+    await api.storage.local.set({ updateInfo: info });
+    await api.action.setTitle({ title: info ? `KinGuard – version ${version} available` : "KinGuard – protecting you" });
+    return info;
+  } catch {
+    return null;
+  }
+}
+
 /* ---------------- events ---------------- */
 
 api.runtime.onInstalled.addListener(async ({ reason }) => {
@@ -749,6 +800,7 @@ api.runtime.onStartup.addListener(() => {
   applySettings();
   updateMenus();
   enableActionCount();
+  checkForUpdate();
 });
 
 api.storage.onChanged.addListener((changes, area) => {
@@ -808,6 +860,10 @@ api.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     case "officialSite":
       if (!fromPage) return false;
       return reply(officialSite(msg.name));
+    case "checkUpdate":
+      // From the popup / Settings (extension pages only).
+      if (fromPage) return false;
+      return reply(checkForUpdate(!!msg.force));
     case "factCheck":
       // From the YouTube button (page) or the popup; only builds our own search URLs.
       return reply(openCheck(msg.engine, msg.text, msg.url, sender.tab));

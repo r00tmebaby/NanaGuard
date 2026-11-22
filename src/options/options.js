@@ -11,6 +11,33 @@
 
   $("version").textContent = "Version " + api.runtime.getManifest().version;
 
+  /* ---------- updates (manual installs only; store installs update themselves) ---------- */
+  async function showUpdate(force) {
+    let manual = true;
+    try {
+      const self = api.management && api.management.getSelf ? await api.management.getSelf() : null;
+      manual = !self || self.installType !== "normal";
+    } catch { /* assume manual */ }
+    if (!manual) { $("updateCard").hidden = true; return; }
+    $("updateStatus").textContent = "Checking for a new version…";
+    const res = await api.runtime.sendMessage({ cmd: "checkUpdate", force }).catch(() => null);
+    const info = res && res.ok ? res.value : null;
+    const current = api.runtime.getManifest().version;
+    if (info && info.version) {
+      $("updateStatus").textContent = `KinGuard ${info.version} is available (you have ${current}).`;
+      $("dlChrome").href = info.chromeZip || info.page;
+      $("dlFirefox").href = info.firefoxZip || info.page;
+      $("dlPage").href = info.page || "https://github.com/r00tmebaby/KinGuard/releases/latest";
+      $("updateHow").hidden = false;
+    } else {
+      $("updateStatus").textContent = `You have the latest version (${current}).`;
+      $("updateHow").hidden = true;
+    }
+  }
+  $("checkUpdate").addEventListener("click", () => showUpdate(true));
+  showUpdate(false);
+  if (location.hash === "#update") $("updateCard").scrollIntoView();
+
   /* ---------- tabs ---------- */
   const tabs = [...document.querySelectorAll("[role=tab]")];
   const select = (name) => {

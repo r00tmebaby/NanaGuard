@@ -592,6 +592,32 @@ try {
     check("youtube: Google / ChatGPT / News / Fact-check buttons each open their tab",
       results.length === 4 && results.every((u, i) => u.includes(expected[i])), results.map((u) => u.slice(0, 45)).join(" | "));
 
+    // "Find source": normal path (frame capture → Lens page) and fallback (capture refused → thumbnail by URL).
+    const clickFind = async () => {
+      const findBtn = buttons[buttons.length - 1];
+      await cdp.send("DOM.scrollIntoViewIfNeeded", { backendNodeId: findBtn.backendNodeId });
+      await sleep(300);
+      const { model } = await cdp.send("DOM.getBoxModel", { backendNodeId: findBtn.backendNodeId });
+      const [a1, b1, , , a3, b3] = model.content;
+      const created = new Promise((res) => browser.once("targetcreated", res));
+      await ytp.mouse.click((a1 + a3) / 2, (b1 + b3) / 2);
+      const tgt = await Promise.race([created, sleep(6000).then(() => null)]);
+      const url = tgt ? tgt.url() : "nothing";
+      if (tgt) { const pg = await tgt.page().catch(() => null); if (pg) await pg.close().catch(() => {}); }
+      return url;
+    };
+    if (buttons.length === 5) {
+      const normal = await clickFind();
+      check("youtube: 'Find source' captures the frame and opens Google Lens", normal.includes("/src/lens/lens.html"), normal);
+      await worker.evaluate(() => { globalThis.__realCapture = chrome.tabs.captureVisibleTab; chrome.tabs.captureVisibleTab = async () => { throw new Error("simulated: site access on click"); }; });
+      await sleep(400);
+      const fallback = await clickFind();
+      await worker.evaluate(() => { chrome.tabs.captureVisibleTab = globalThis.__realCapture; });
+      // Lens may already have redirected to Google's visual-search results (search?vsrid=…).
+      check("youtube: 'Find source' still works when capture is refused (thumbnail fallback)",
+        (fallback.includes("lens.google.com/uploadbyurl") && fallback.includes("i.ytimg.com")) || /google\.[a-z.]+\/search\?.*vsrid=/.test(fallback), fallback.slice(0, 90));
+    } else check("youtube: 'Find source' button present", false, `${buttons.length} buttons`);
+
     // Status chip (inside the closed shadow root) — read via CDP.
     // Returns the visible chip text, "(hidden)" when the chip is hidden, or null if absent.
     globalThis.__chipText = async (pg, session) => {
@@ -644,6 +670,28 @@ try {
   check("allowlisted: popups allowed", await page.evaluate(() => { const w = window.open("about:blank"); if (w) w.close(); return w !== null; }));
   check("allowlisted: generic CSS off", (await display("#AD_300")) === "block");
   check("allowlisted: smart detection off", (await display("#promo-wrap")) === "block");
+
+  /* --- update notice for manual installs (GitHub answer simulated) --- */
+  const upd = await worker.evaluate(async () => {
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async (u, o) => String(u).includes("api.github.com/repos/r00tmebaby/KinGuard/releases/latest")
+      ? new Response(JSON.stringify({ tag_name: "v99.0.0", html_url: "https://github.com/r00tmebaby/KinGuard/releases/tag/v99.0.0",
+          assets: [{ name: "kinguard-chrome-99.0.0.zip", browser_download_url: "https://example.test/c.zip" }, { name: "kinguard-firefox-99.0.0.zip", browser_download_url: "https://example.test/f.zip" }] }), { status: 200 })
+      : realFetch(u, o);
+    const info = await checkForUpdate(true);
+    globalThis.fetch = realFetch;
+    return { manual: await isManualInstall(), info };
+  });
+  check("update: manual install detected", upd.manual === true);
+  check("update: newer GitHub release found", upd.info && upd.info.version === "99.0.0" && upd.info.chromeZip.endsWith("c.zip") && upd.info.firefoxZip.endsWith("f.zip"), JSON.stringify(upd.info));
+  const optPage = await browser.newPage();
+  await optPage.goto(`chrome-extension://${extId}/src/options/options.html#update`, { waitUntil: "load" });
+  await sleep(1200);
+  const optUpd = await optPage.evaluate(() => ({ status: document.getElementById("updateStatus").textContent, how: !document.getElementById("updateHow").hidden, dl: document.getElementById("dlChrome").href, author: document.querySelector("footer").textContent }));
+  await optPage.close();
+  check("update: Settings shows the new version with download link", /99\.0\.0 is available/.test(optUpd.status) && optUpd.how && optUpd.dl.includes("c.zip"), optUpd.status);
+  check("author shown in Settings", /Made by r00tmebaby/.test(optUpd.author));
+  await worker.evaluate(async () => { await chrome.storage.local.set({ updateInfo: null, updateCheckedAt: 0 }); });
 
   /* --- UI pages --- */
   for (const pth of ["src/popup/popup.html", "src/options/options.html", "src/blocked/blocked.html#https://x.test/"]) {
