@@ -10,7 +10,7 @@
   const nativeDispatch = EventTarget.prototype.dispatchEvent;
   const report = () => {
     try {
-      nativeDispatch.call(document, new CustomEvent("blockify:blocked", { detail: "video" }));
+      nativeDispatch.call(document, new CustomEvent("kinguard:blocked", { detail: "video" }));
     } catch {
       /* ignore */
     }

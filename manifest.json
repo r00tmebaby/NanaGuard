@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "__MSG_extName__",
-  "short_name": "Blockify",
-  "version": "2.3.0",
+  "short_name": "Kinguard",
+  "version": "2.4.0",
   "description": "__MSG_extDescription__",
   "default_locale": "en",
   "minimum_chrome_version": "116",
@@ -42,7 +42,7 @@
     }
   ],
   "action": {
-    "default_title": "Blockify",
+    "default_title": "Kinguard",
     "default_popup": "src/popup/popup.html",
     "default_icon": {
       "16": "icons/icon-16.png",
@@ -55,7 +55,7 @@
   },
   "browser_specific_settings": {
     "gecko": {
-      "id": "blockify@r00tmebaby",
+      "id": "kinguard@r00tmebaby",
       "strict_min_version": "128.0",
       "data_collection_permissions": { "required": ["none"] }
     }

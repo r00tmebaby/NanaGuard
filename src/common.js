@@ -6,7 +6,7 @@ var api = globalThis.browser ?? globalThis.chrome;
 
 // eslint-disable-next-line no-var
 var BLK = Object.freeze({
-  NAME: "Blockify",
+  NAME: "Kinguard",
   MAX_LIST: 500,
   CATEGORIES: Object.freeze(["ads", "privacy", "security", "annoyances"]),
 
@@ -26,12 +26,38 @@ var BLK = Object.freeze({
     factcheck: { title: "'Check facts' buttons", desc: "Right-click any text → Check facts, plus a button under YouTube videos. Opens Google, fact-checkers or ChatGPT in a new tab." },
   }),
 
+  // Order = button order everywhere (popup, YouTube, right-click menu).
   FACT_ENGINES: Object.freeze({
+    google: "Search Google",
+    chatgpt: "Ask ChatGPT",
     news: "Other news sources",
     factcheck: "Search fact-checkers",
-    chatgpt: "Ask ChatGPT",
-    google: "Search Google",
   }),
+
+  FACT_SHORT: Object.freeze({ google: "Google", chatgpt: "ChatGPT", news: "News", factcheck: "Fact-check" }),
+
+  // Simple outline icons (24×24, stroke = currentColor), built with DOM APIs (no innerHTML).
+  ICONS: Object.freeze({
+    news: [["path", "M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"], ["path", "M18 14h-8"], ["path", "M15 18h-5"], ["path", "M10 6h8v4h-8z"]],
+    factcheck: [["path", "M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z"], ["path", "m9 12 2 2 4-4"]],
+    chatgpt: [["path", "M7.9 20A9 9 0 1 0 4 16.1L2 22Z"], ["path", "M8 12h.01"], ["path", "M12 12h.01"], ["path", "M16 12h.01"]],
+    google: [["circle", { cx: 11, cy: 11, r: 8 }], ["path", "m21 21-4.3-4.3"]],
+  }),
+
+  icon(name, size = 16, doc = document) {
+    const NS = "http://www.w3.org/2000/svg";
+    const svg = doc.createElementNS(NS, "svg");
+    const attrs = { viewBox: "0 0 24 24", width: size, height: size, fill: "none", stroke: "currentColor",
+      "stroke-width": 2, "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true" };
+    for (const [k, v] of Object.entries(attrs)) svg.setAttribute(k, v);
+    for (const [tag, d] of BLK.ICONS[name] || []) {
+      const el = doc.createElementNS(NS, tag);
+      if (typeof d === "string") el.setAttribute("d", d);
+      else for (const [k, v] of Object.entries(d)) el.setAttribute(k, v);
+      svg.append(el);
+    }
+    return svg;
+  },
 
   /** Short keyword query from a headline/claim: drops filler words, keeps names and numbers.
    *  "Deutsche Bank Leak Reveals $582 Million In Epstein Payments, …" → "Deutsche Bank $582 Epstein Payments" */

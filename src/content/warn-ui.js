@@ -44,7 +44,7 @@ var BlkWarn = (() => {
 
   function ensure() {
     if (root && hostEl.isConnected) return root;
-    hostEl = document.createElement("blockify-warning");
+    hostEl = document.createElement("kinguard-warning");
     hostEl.style.cssText = "all:initial;position:fixed;inset:0;z-index:2147483647;pointer-events:none;";
     root = hostEl.attachShadow({ mode: "closed" });
     const style = document.createElement("style");
@@ -93,7 +93,7 @@ var BlkWarn = (() => {
           make("h2", { textContent: title }),
           ...lines.map(paragraph),
           make("div", { className: "actions" }, ...buttons),
-          make("div", { className: "brand", textContent: "Warning from Blockify" })));
+          make("div", { className: "brand", textContent: "Warning from Kinguard" })));
     } else {
       el = make("div", { className: "banner", role: "alert" },
         make("div", { className: "text" }, make("b", { textContent: "⚠ " + title }), ...lines.map((l) => (typeof l === "string" ? l + " " : l.site + " "))),

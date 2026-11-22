@@ -1,10 +1,29 @@
-# Blockify
+<div align="center">
 
-**A free browser extension that blocks ads and protects you from online scams.**
+# Kinguard
+
+### A free browser extension that blocks ads and protects you from online scams
 
 Made for people who just want the internet to be safe and calm, like your parents or grandparents. Install it once and it works on its own.
 
-Works in **Chrome, Edge, Brave, Opera** and **Firefox**.
+[![Build](https://github.com/r00tmebaby/kinguard/actions/workflows/release.yml/badge.svg)](https://github.com/r00tmebaby/kinguard/actions/workflows/release.yml)
+[![Tests](https://img.shields.io/github/actions/workflow/status/r00tmebaby/kinguard/release.yml?branch=main&label=tests)](https://github.com/r00tmebaby/kinguard/actions/workflows/release.yml)
+[![Latest release](https://img.shields.io/github/v/release/r00tmebaby/kinguard?label=release&color=7c4dff)](https://github.com/r00tmebaby/kinguard/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/r00tmebaby/kinguard/total?color=00c853)](https://github.com/r00tmebaby/kinguard/releases)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![Changelog](https://img.shields.io/badge/changelog-view-blue)](CHANGELOG.md)
+[![Stars](https://img.shields.io/github/stars/r00tmebaby/kinguard?style=social)](https://github.com/r00tmebaby/kinguard/stargazers)
+
+![Chrome](https://img.shields.io/badge/Chrome-4285F4?logo=googlechrome&logoColor=white)
+![Edge](https://img.shields.io/badge/Edge-0078D7?logo=microsoftedge&logoColor=white)
+![Firefox](https://img.shields.io/badge/Firefox-FF7139?logo=firefoxbrowser&logoColor=white)
+![Brave](https://img.shields.io/badge/Brave-FB542B?logo=brave&logoColor=white)
+![Opera](https://img.shields.io/badge/Opera-FF1B2D?logo=opera&logoColor=white)
+![Manifest V3](https://img.shields.io/badge/Manifest-V3-4f46e5)
+
+**[Download](https://github.com/r00tmebaby/kinguard/releases/latest)** · **[Screenshots](#screenshots)** · **[Install](#install)** · **[Privacy](PRIVACY.md)** · **[Changelog](CHANGELOG.md)**
+
+</div>
 
 ---
 
@@ -47,7 +66,7 @@ Works in **Chrome, Edge, Brave, Opera** and **Firefox**.
 <td><img src="docs/screenshots/settings-ads.png" alt="Filter list settings"><br><sub><b>Settings → Filters</b>: choose what to block.</sub></td>
 </tr>
 <tr>
-<td colspan="2" align="center"><img src="docs/screenshots/settings-smart.png" alt="Smart detection settings" width="50%"><br><sub><b>Settings → Smart</b>: see what Blockify has learned, and undo anything.</sub></td>
+<td colspan="2" align="center"><img src="docs/screenshots/settings-smart.png" alt="Smart detection settings" width="50%"><br><sub><b>Settings → Smart</b>: see what Kinguard has learned, and undo anything.</sub></td>
 </tr>
 </table>
 
@@ -55,12 +74,12 @@ Works in **Chrome, Edge, Brave, Opera** and **Firefox**.
 
 ## Install
 
-1. Download the latest zip from **[Releases](../../releases/latest)** (`blockify-chrome` for Chrome/Edge/Brave/Opera, `blockify-firefox` for Firefox) and unzip it.
+1. Download the latest zip from **[Releases](../../releases/latest)** (`kinguard-chrome` for Chrome/Edge/Brave/Opera, `kinguard-firefox` for Firefox) and unzip it.
 2. **Chrome / Edge:** open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked**, and pick the unzipped folder.
    **Firefox:** open `about:debugging#/runtime/this-firefox`, click **Load Temporary Add-on**, and pick `manifest.json`.
-3. Pin the Blockify icon to the toolbar. Done.
+3. Pin the Kinguard icon to the toolbar. Done.
 
-> **Tip:** also turn on your browser's own protection: **Chrome → Settings → Privacy and security → Security → Enhanced protection**. It works alongside Blockify.
+> **Tip:** also turn on your browser's own protection: **Chrome → Settings → Privacy and security → Security → Enhanced protection**. It works alongside Kinguard.
 
 ## Using it
 
@@ -84,4 +103,4 @@ npm run build      # store-ready zips in dist/
 - **Releases:** every version bump on `main` publishes a GitHub Release automatically. Filter lists also refresh every Monday and ship as a new release.
 - **Code:** `src/background.js` (rules & learning), `src/content/` (page protections, smart detection, scam guard), `src/options` and `src/popup` (UI), `scripts/` (build tools), `tests/` (e2e suite and [`playground.html`](tests/playground.html)).
 
-[Privacy policy](PRIVACY.md) · Blockify is a safety layer, **not antivirus**: keep Windows Security on.
+[Privacy policy](PRIVACY.md) · Kinguard is a safety layer, **not antivirus**: keep Windows Security on.

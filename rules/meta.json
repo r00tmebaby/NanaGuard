@@ -1,11 +1,11 @@
 {
-  "generated": "2026-11-22T18:18:18.527Z",
+  "generated": "2026-11-22T18:39:58.455Z",
   "sources": [
     {
       "id": "easylist",
       "cat": "ads",
       "title": "EasyList",
-      "version": "202611221803",
+      "version": "202611221834",
       "ok": true
     },
     {
@@ -40,7 +40,7 @@
       "id": "easyprivacy",
       "cat": "privacy",
       "title": "EasyPrivacy",
-      "version": "202611221808",
+      "version": "202611221834",
       "ok": true
     },
     {

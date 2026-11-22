@@ -186,7 +186,7 @@ try {
   // Cross-site learning: same network on 3 sites → blocked everywhere.
   await worker.evaluate(async () => {
     for (const site of ["https://news-a.test/", "https://blog-b.test/", "https://shop-c.test/"]) {
-      await blockify.learn({ url: site }, null, ["ads.unknown-network.test"]);
+      await kinguard.learn({ url: site }, null, ["ads.unknown-network.test"]);
     }
   });
   await sleep(1500);
@@ -268,7 +268,7 @@ try {
 
   /* --- scam & fraud guards --- */
   const stat = async (kind) => (await worker.evaluate(async () => (await chrome.storage.local.get("stats")).stats || {}))[kind] || 0;
-  const hasWarning = (p) => p.evaluate(() => !!document.querySelector("blockify-warning"));
+  const hasWarning = (p) => p.evaluate(() => !!document.querySelector("kinguard-warning"));
   const visit = async (url, wait = 2500) => {
     const p = await browser.newPage();
     await p.goto(url, { waitUntil: "load" }).catch(() => {});
@@ -292,7 +292,7 @@ try {
   check("phishing: homograph (Cyrillic аpple) warned", (await hasWarning(g)) && (await stat("phishing")) > before);
   await g.close();
 
-  const wd = await worker.evaluate(() => blockify.officialSite("Monzo"));
+  const wd = await worker.evaluate(() => kinguard.officialSite("Monzo"));
   check("wikidata: official website lookup works", wd.includes("monzo.com"), JSON.stringify(wd));
   before = await stat("phishing");
   g = await visit(`http://monzo-account.test:${port}/login-monzo`, 6000);
@@ -430,16 +430,56 @@ try {
   check("fact check: URLs built", fcUrl[0].startsWith("https://www.google.com/search?q=the%20moon") && fcUrl[1].startsWith("https://toolbox.google.com/factcheck/") &&
     fcUrl[2].startsWith("https://chatgpt.com/?q=") && fcUrl[3].startsWith("https://news.google.com/search?q="), fcUrl.slice(0, 4).join(" | "));
   check("fact check: headline shortened to keywords", fcUrl[4] === "Deutsche Bank $582 Epstein Payments", fcUrl[4]);
-  await worker.evaluate(() => blockify.openCheck("factcheck", "drinking bleach cures covid", null, null));
+  await worker.evaluate(() => kinguard.openCheck("factcheck", "drinking bleach cures covid", null, null));
   const fcTab = await waitFor(async () => (await browser.pages()).find((p) => p.url().includes("toolbox.google.com/factcheck")), 8000);
   check("fact check: opens in a new tab", !!fcTab);
   if (fcTab) await fcTab.close();
 
   // Real YouTube: the "Check facts" button appears under the title (needs internet).
-  const ytp = await visit("https://www.youtube.com/watch?v=jNQXAC9IVRw", 9000);
-  const ytButton = await ytp.evaluate(() => !!document.querySelector("ytd-watch-metadata blockify-check")).catch(() => false);
+  const ytp = await browser.newPage();
+  await ytp.setViewport({ width: 1280, height: 900 });
+  await ytp.goto("https://www.youtube.com/watch?v=jNQXAC9IVRw", { waitUntil: "load" }).catch(() => {});
+  await sleep(6000);
+  // A fresh browser gets YouTube's EU cookie-consent screen over everything: dismiss it.
+  await ytp.evaluate(() => {
+    const b = [...document.querySelectorAll("button")].find((x) => /reject all/i.test(x.textContent));
+    if (b) b.click();
+  }).catch(() => {});
+  await sleep(3000);
+  const ytButton = await ytp.evaluate(() => !!document.querySelector("ytd-watch-metadata kinguard-check")).catch(() => false);
   check("youtube: 'Check facts' button shown on real YouTube", ytButton, ytp.url().slice(0, 60));
   check("youtube: no false deepfake/AI warning on a normal video", !(await hasWarning(ytp)));
+  if (ytButton) {
+    // Buttons live in a closed shadow root: locate them through CDP and click by position.
+    const cdp = await ytp.createCDPSession();
+    const { root } = await cdp.send("DOM.getDocument", { depth: -1, pierce: true });
+    const buttons = [];
+    const walk = (n) => {
+      if (n.nodeName === "BUTTON" && buttons.length < 10) buttons.push(n);
+      for (const c of [...(n.children || []), ...(n.shadowRoots || [])]) walk(c);
+    };
+    const host = (function find(n) {
+      if (n.nodeName === "KINGUARD-CHECK") return n;
+      for (const c of [...(n.children || []), ...(n.shadowRoots || [])]) { const f = find(c); if (f) return f; }
+      return null;
+    })(root);
+    if (host) walk(host);
+    const expected = ["www.google.com/search", "chatgpt.com", "news.google.com", "toolbox.google.com/factcheck"];
+    const results = [];
+    for (let i = 0; i < Math.min(buttons.length, 4); i++) {
+      await cdp.send("DOM.scrollIntoViewIfNeeded", { backendNodeId: buttons[i].backendNodeId });
+      await sleep(300);
+      const { model } = await cdp.send("DOM.getBoxModel", { backendNodeId: buttons[i].backendNodeId });
+      const [x1, y1, , , x3, y3] = model.content;
+      const newTab = new Promise((res) => browser.once("targetcreated", (t) => res(t)));
+      await ytp.mouse.click((x1 + x3) / 2, (y1 + y3) / 2);
+      const t = await Promise.race([newTab, sleep(5000).then(() => null)]);
+      results.push(t ? t.url() : "nothing");
+      if (t) { const p = await t.page().catch(() => null); if (p) await p.close().catch(() => {}); }
+    }
+    check("youtube: Google / ChatGPT / News / Fact-check buttons each open their tab",
+      results.length === 4 && results.every((u, i) => u.includes(expected[i])), results.map((u) => u.slice(0, 45)).join(" | "));
+  }
   await ytp.close();
 
   /* --- allowlist turns everything off --- */

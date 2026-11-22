@@ -78,26 +78,39 @@ var BlkYouTube = (() => {
   }
 
   /* ---------------- fact-check button ---------------- */
-  function addCheckButton(message) {
+  function addCheckButton() {
     const host = document.querySelector("ytd-watch-metadata #title");
-    if (!host || host.querySelector("blockify-check")) return;
-    const el = document.createElement("blockify-check");
+    if (!host || host.querySelector("kinguard-check")) return;
+    const el = document.createElement("kinguard-check");
     el.style.cssText = "all:initial;display:inline-block;margin:6px 0 2px;";
     const root = el.attachShadow({ mode: "closed" });
     const style = document.createElement("style");
-    style.textContent = `button{font:500 13px/1 system-ui,Roboto,sans-serif;border:1px solid #c7d2fe;background:#eef2ff;color:#3730a3;
-      border-radius:999px;padding:7px 12px;cursor:pointer;margin-right:6px}button:hover{background:#e0e7ff}
-      @media (prefers-color-scheme: dark){button{background:#1e1b4b;color:#c7d2fe;border-color:#3730a3}}`;
-    root.append(style);
-    for (const [engine, label] of [["news", "Check facts: other sources"], ["factcheck", "Fact-checkers"], ["chatgpt", "Ask ChatGPT"]]) {
+    style.textContent = `.row{display:flex;gap:6px;flex-wrap:nowrap;align-items:center}
+      .t{font:600 12px/1 system-ui,Roboto,sans-serif;color:#6b7280;margin-right:2px;white-space:nowrap}
+      button{display:inline-flex;align-items:center;gap:6px;font:500 13px/1 system-ui,Roboto,sans-serif;border:1px solid #c7d2fe;
+      background:#eef2ff;color:#3730a3;border-radius:999px;padding:6px 12px;cursor:pointer;white-space:nowrap}
+      button:hover{background:#e0e7ff}
+      @media (prefers-color-scheme: dark){button{background:#1e1b4b;color:#c7d2fe;border-color:#3730a3}.t{color:#9ca3af}}`;
+    const row = document.createElement("div");
+    row.className = "row";
+    const lead = document.createElement("span");
+    lead.className = "t";
+    lead.textContent = "Check facts:";
+    row.append(lead);
+    root.append(style, row);
+    for (const engine of Object.keys(BLK.FACT_ENGINES)) {
       const b = document.createElement("button");
-      b.textContent = label;
+      b.append(BLK.icon(engine, 15), BLK.FACT_SHORT[engine]);
       b.title = `${BLK.FACT_ENGINES[engine]} about this video (opens a new tab)`;
-      b.addEventListener("click", () => {
+      b.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         const { title } = context();
-        message({ cmd: "factCheck", engine, text: title, url: location.href });
+        // Open directly from the click: works even if the extension was reloaded while this
+        // tab stayed open (messaging to the background would silently fail then).
+        window.open(BLK.factCheckUrl(engine, title, location.href), "_blank", "noopener");
       });
-      root.append(b);
+      row.append(b);
     }
     host.append(el);
   }
@@ -109,7 +122,7 @@ var BlkYouTube = (() => {
     const pause = () => { const v = document.querySelector("#movie_player video"); if (v && !v.paused) v.pause(); };
 
     const check = () => {
-      if (guards.factcheck) addCheckButton(message);
+      if (guards.factcheck) addCheckButton();
       if (!guards.ai) return;
       const id = videoId();
       if (!id) return;

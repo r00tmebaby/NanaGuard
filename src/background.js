@@ -1,4 +1,4 @@
-/* Blockify background: wires settings to scripts, CSS and network rules, serves per-site
+/* Kinguard background: wires settings to scripts, CSS and network rules, serves per-site
  * cosmetic filters, learns ads/ad networks, keeps counters, closes popunder tabs and
  * routes dangerous sites to the warning page. */
 "use strict";
@@ -47,7 +47,7 @@ const baseDomain = (host) => BLK.baseDomain(host);
 /* ---------------- apply settings ---------------- */
 
 let chain = Promise.resolve();
-const queue = (fn) => (chain = chain.then(fn, fn).catch((e) => console.error("Blockify:", e)));
+const queue = (fn) => (chain = chain.then(fn, fn).catch((e) => console.error("Kinguard:", e)));
 // Network rules first (fast, immediate effect), then content scripts (slower).
 const applySettings = () => queue(async () => {
   await updateDynamicRules();
@@ -69,7 +69,7 @@ async function register(scripts) {
       try {
         await api.scripting.registerContentScripts([s]);
       } catch (e) {
-        console.warn(`Blockify: ${s.id} failed (${e.message}); retrying without excludes`);
+        console.warn(`Kinguard: ${s.id} failed (${e.message}); retrying without excludes`);
         delete s.excludeMatches;
         await api.scripting.registerContentScripts([s]).catch(() => {});
       }
@@ -140,7 +140,7 @@ async function updateRulesets() {
     try {
       await api.declarativeNetRequest.updateEnabledRulesets({ enableRulesetIds: [id] });
     } catch (e) {
-      console.warn(`Blockify: could not enable ${id}: ${e.message}`);
+      console.warn(`Kinguard: could not enable ${id}: ${e.message}`);
     }
   }
 }
@@ -180,7 +180,7 @@ async function updateDynamicRules() {
     await api.declarativeNetRequest.updateDynamicRules({ removeRuleIds: current.map((r) => r.id), addRules: rules });
   } catch (e) {
     // Browsers without regex redirects: fall back to plain blocking.
-    console.warn("Blockify: dynamic rules fallback", e.message);
+    console.warn("Kinguard: dynamic rules fallback", e.message);
     const plain = rules.map((r) => r.action.type === "redirect" ? { ...r, action: { type: "block" },
       condition: { requestDomains: r.condition.requestDomains, resourceTypes: ["main_frame"] } } : r);
     await api.declarativeNetRequest.updateDynamicRules({ removeRuleIds: current.map((r) => r.id), addRules: plain });
@@ -190,7 +190,7 @@ async function updateDynamicRules() {
 async function updateIcon() {
   const { enabled } = await BLK.getSettings();
   await api.action.setIcon({ path: enabled ? ICON_ON : ICON_OFF });
-  await api.action.setTitle({ title: enabled ? "Blockify – protecting you" : "Blockify – paused" });
+  await api.action.setTitle({ title: enabled ? "Kinguard – protecting you" : "Kinguard – paused" });
 }
 
 /* ---------------- per-site cosmetics ---------------- */
@@ -231,7 +231,7 @@ function injectCss(tabId, frameId, rules) {
   // One rule per line: an invalid selector only invalidates itself.
   return api.scripting
     .insertCSS({ target: { tabId, frameIds: [frameId] }, css: rules.join("\n"), origin: "USER" })
-    .catch((e) => console.warn("Blockify: insertCSS failed", e.message));
+    .catch((e) => console.warn("Kinguard: insertCSS failed", e.message));
 }
 
 async function hideElement(tab, frameId, selector) {
@@ -284,7 +284,7 @@ function learn(tab, selector, networks) {
     }
     if (changed) await api.storage.local.set({ learnedNetworks: nets });
     if (newlyBlocked) applyDynamic();
-  }).catch((e) => console.error("Blockify learn:", e));
+  }).catch((e) => console.error("Kinguard learn:", e));
   return learnChain;
 }
 
@@ -350,7 +350,7 @@ async function countHidden(tabId) {
 }
 
 let statChain = Promise.resolve();
-const serialize = (fn) => (statChain = statChain.then(fn).catch((e) => console.error("Blockify:", e)));
+const serialize = (fn) => (statChain = statChain.then(fn).catch((e) => console.error("Kinguard:", e)));
 
 function record(kind, tabId) {
   if (!(kind in BLK.STAT_LABELS)) return;
@@ -412,7 +412,7 @@ async function officialSite(name) {
   const key = clean.toLowerCase();
   const cache = await BLK.getLocal("wdCache", {});
   if (cache[key] && Date.now() - cache[key].t < 30 * 864e5) return cache[key].d;
-  const headers = { "Api-User-Agent": `Blockify/${api.runtime.getManifest().version} (https://github.com/r00tmebaby/blockify)` };
+  const headers = { "Api-User-Agent": `Kinguard/${api.runtime.getManifest().version} (https://github.com/r00tmebaby/kinguard)` };
   let domains = [];
   try {
     const search = await fetch(`https://www.wikidata.org/w/api.php?action=wbsearchentities&format=json&language=en&type=item&limit=10&search=${encodeURIComponent(clean)}`, { headers }).then((r) => r.json());
@@ -454,7 +454,7 @@ async function updateMenus() {
   await menus.removeAll();
   const { enabled, guards } = await BLK.getSettings();
   if (!enabled || !guards.factcheck) return;
-  menus.create({ id: "blk", title: "Check facts with Blockify", contexts: MENU_CONTEXTS });
+  menus.create({ id: "blk", title: "Check facts with Kinguard", contexts: MENU_CONTEXTS });
   for (const [engine, title] of Object.entries(BLK.FACT_ENGINES)) {
     menus.create({ id: `blk-${engine}`, parentId: "blk", title, contexts: MENU_CONTEXTS });
   }
@@ -608,4 +608,4 @@ api.tabs.onRemoved.addListener((tabId) => {
 });
 
 // Expose for tests/debugging in the service worker console.
-globalThis.blockify = { applySettings, cosmeticFor, learn, getMeta, officialSite, updateMenus, openCheck };
+globalThis.kinguard = { applySettings, cosmeticFor, learn, getMeta, officialSite, updateMenus, openCheck };

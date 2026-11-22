@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Blockify</title>
+  <title>Kinguard</title>
   <link rel="stylesheet" href="../ui/ui.css">
   <link rel="stylesheet" href="popup.css">
 </head>
@@ -10,7 +10,7 @@
   <header class="row">
     <div class="brand">
       <img src="../../icons/icon-32.png" width="24" height="24" alt="">
-      <h1>Blockify</h1>
+      <h1>Kinguard</h1>
     </div>
     <label class="switch" title="Protection on/off everywhere">
       <input type="checkbox" id="global" aria-label="Protection everywhere">
@@ -19,7 +19,7 @@
   </header>
 
   <div id="perm" class="banner" hidden>
-    <span>Blockify needs access to websites to protect them.</span>
+    <span>Kinguard needs access to websites to protect them.</span>
     <button id="grant" class="btn primary">Allow</button>
   </div>
 
@@ -47,17 +47,6 @@
     <div class="card count"><strong id="tabCount">0</strong><span class="muted">tricks stopped</span></div>
   </section>
 
-  <section id="checkCard" class="card check" hidden>
-    <div class="label">Is this true?</div>
-    <p id="checkText" class="check-text"></p>
-    <div class="check-btns">
-      <button class="btn" data-engine="news" title="Is it reported by other news outlets too?">Other news sources</button>
-      <button class="btn" data-engine="factcheck" title="Claims already reviewed by professional fact-checkers">Fact-checkers</button>
-      <button class="btn" data-engine="chatgpt">Ask ChatGPT</button>
-      <button class="btn" data-engine="google">Search Google</button>
-    </div>
-  </section>
-
   <div id="smartRow" class="card smart row" hidden>
     <span><b id="smartCount">0</b> ads spotted automatically on this page</span>
     <button id="smartUndo" class="btn small-btn" title="Stop smart detection on this site and forget what it learned here">Undo</button>
@@ -67,6 +56,12 @@
     <summary class="muted small">Details · <span id="totalCount">0</span> blocked in total</summary>
     <ul id="breakdown" class="breakdown"></ul>
   </details>
+
+  <section id="checkCard" class="card check" hidden>
+    <div class="label">Is this true?</div>
+    <p id="checkText" class="check-text"></p>
+    <div class="check-btns" id="checkBtns"></div>
+  </section>
 
   <footer class="row">
     <a href="#" id="openOptions">Settings</a>

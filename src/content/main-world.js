@@ -14,7 +14,7 @@
     try {
       nativeDispatch.call(
         document,
-        new NativeCustomEvent("blockify:blocked", { detail: String(kind) })
+        new NativeCustomEvent("kinguard:blocked", { detail: String(kind) })
       );
     } catch {
       /* document not ready / detached */
@@ -22,15 +22,15 @@
   };
   const warn = (kind) => {
     try {
-      nativeDispatch.call(document, new NativeCustomEvent("blockify:warn", { detail: String(kind) }));
+      nativeDispatch.call(document, new NativeCustomEvent("kinguard:warn", { detail: String(kind) }));
     } catch {
       /* ignore */
     }
   };
 
   // Flags set by background.js (flag file injected just before this one, before any page script).
-  const FLAGS = window.__blockifyFlags || {};
-  try { delete window.__blockifyFlags; } catch { /* ignore */ }
+  const FLAGS = window.__kinguardFlags || {};
+  try { delete window.__kinguardFlags; } catch { /* ignore */ }
 
   /* ---------- fake "verify you're human" (ClickFix) clipboard guard ---------- */
   // A command interpreter / LOLBin in the copied text…
@@ -40,7 +40,7 @@
   // …disguised as a human check, or on a page telling you to open Run/Terminal and paste.
   const BAIT = /(captcha|i am not a robot|i'?m not a robot|not a robot|i am human|verif(y|ication)|cloudflare|ray id|✅|✔)/i;
   const PAGE_BAIT = /(win(dows)?\s*(key)?\s*(\+|and)\s*r\b|⊞\s*\+?\s*r\b|press\s+(the\s+)?windows\s+(key|button)|run dialog|ctrl\s*\+\s*v|cmd\s*\+\s*v|command\s*\+\s*v|paste\b.{0,30}\b(terminal|run box|run window|command))/i;
-  const SAFE_TEXT = "STOP! Blockify blocked a dangerous command from a website. Do not paste anything a website tells you to. Close this window.";
+  const SAFE_TEXT = "STOP! Kinguard blocked a dangerous command from a website. Do not paste anything a website tells you to. Close this window.";
   const pageBait = () => {
     for (const d of [document, (() => { try { return window.top.document; } catch { return null; } })()]) {
       if (d && d.body && PAGE_BAIT.test(d.body.innerText.slice(0, 20000))) return true;
@@ -191,7 +191,7 @@
       Object.defineProperty(o, key, { ...desc, ...next });
     };
     const blockedPromise = (msg) =>
-      W.Promise.reject(new W.DOMException(msg || "Blocked by Blockify", "NotAllowedError"));
+      W.Promise.reject(new W.DOMException(msg || "Blocked by Kinguard", "NotAllowedError"));
 
     // Gesture listeners for this realm.
     for (const type of ["pointerdown", "click", "keydown"]) {
@@ -325,7 +325,7 @@
         function subscribe() {
           if (realPermission() === "granted") return orig.apply(this, arguments);
           report("notification");
-          return blockedPromise("Push subscription blocked by Blockify");
+          return blockedPromise("Push subscription blocked by Kinguard");
         }
       );
     }
@@ -354,7 +354,7 @@
       function requestFullscreen() {
         if (isMedia(this)) return orig.apply(this, arguments);
         report("fullscreen");
-        return blockedPromise("Fullscreen blocked by Blockify");
+        return blockedPromise("Fullscreen blocked by Kinguard");
       }
     );
     for (const key of ["webkitRequestFullscreen", "webkitRequestFullScreen", "mozRequestFullScreen"]) {

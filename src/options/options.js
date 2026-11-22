@@ -229,7 +229,7 @@
   });
 
   $("reset").addEventListener("click", async () => {
-    if (!confirm("Reset all Blockify statistics?")) return;
+    if (!confirm("Reset all Kinguard statistics?")) return;
     await api.storage.local.set({ stats: {} });
   });
 
@@ -240,9 +240,9 @@
     const learnedSites = await BLK.getLocal("learnedSites", {});
     const learnedNetworks = await BLK.getLocal("learnedNetworks", {});
     // Password fingerprints are deliberately NOT exported.
-    const data = { blockify: 1, allowlist, blocklist, lists, smart, smartOff, guards, trusted, hidden, learnedSites, learnedNetworks };
+    const data = { kinguard: 1, allowlist, blocklist, lists, smart, smartOff, guards, trusted, hidden, learnedSites, learnedNetworks };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-    const a = el("a", { href: URL.createObjectURL(blob), download: "blockify-backup.json" });
+    const a = el("a", { href: URL.createObjectURL(blob), download: "kinguard-backup.json" });
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   });
@@ -253,7 +253,7 @@
     if (!file) return;
     try {
       const data = JSON.parse(await file.text());
-      if (data.blockify !== 1) throw new Error("not a Blockify backup");
+      if (data.kinguard !== 1) throw new Error("not a Kinguard backup");
       const clean = (list) =>
         [...new Set((Array.isArray(list) ? list : []).map(BLK.normalizeDomain).filter(Boolean))]
           .sort()

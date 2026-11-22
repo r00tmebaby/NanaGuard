@@ -60,7 +60,7 @@ function evalCondition(expr) {
 }
 
 async function fetchText(url) {
-  const res = await fetch(url, { headers: { "user-agent": "blockify-filter-builder" } });
+  const res = await fetch(url, { headers: { "user-agent": "kinguard-filter-builder" } });
   if (!res.ok) throw new Error(`${res.status} ${url}`);
   return res.text();
 }

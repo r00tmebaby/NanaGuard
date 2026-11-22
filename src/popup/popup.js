@@ -67,7 +67,7 @@
       toggle.checked = false;
       toggle.disabled = true;
       document.body.classList.add("off");
-      $("siteStatus").textContent = "Blockify doesn't run on built-in browser pages.";
+      $("siteStatus").textContent = "Kinguard doesn't run on built-in browser pages.";
     }
     $("pick").disabled = !host || !settings.enabled || allowed;
     $("blockSite").disabled = !host;
@@ -143,11 +143,17 @@
     if (!subject) return;
     $("checkText").textContent = (text ? "Selected: " : "This page: ") + `“${subject.slice(0, 160)}”`;
     $("checkCard").hidden = false;
-    for (const b of document.querySelectorAll("[data-engine]")) {
+    for (const [engine, longLabel] of Object.entries(BLK.FACT_ENGINES)) {
+      const b = document.createElement("button");
+      b.className = "btn";
+      b.title = longLabel;
+      b.setAttribute("aria-label", longLabel);
+      b.append(BLK.icon(engine, 18), BLK.FACT_SHORT[engine]);
       b.addEventListener("click", async () => {
-        await api.runtime.sendMessage({ cmd: "factCheck", engine: b.dataset.engine, text: subject, url: tab.url });
+        await api.runtime.sendMessage({ cmd: "factCheck", engine, text: subject, url: tab.url });
         window.close();
       });
+      $("checkBtns").append(b);
     }
   })();
 

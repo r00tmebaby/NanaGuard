@@ -77,7 +77,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: blockify-packages
+          name: kinguard-packages
           path: dist/*.zip
 
       - name: Publish GitHub release
@@ -88,6 +88,6 @@ jobs:
         run: |
           gh release create "$TAG" dist/*.zip \
             --target "$(git rev-parse HEAD)" \
-            --title "Blockify $TAG" \
+            --title "Kinguard $TAG" \
             --generate-notes \
-            --notes "Install: download **blockify-chrome** (Chrome, Edge, Brave, Opera) or **blockify-firefox** below. See README for setup."
+            --notes "Install: download **kinguard-chrome** (Chrome, Edge, Brave, Opera) or **kinguard-firefox** below. See README for setup."
