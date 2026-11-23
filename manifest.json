@@ -1,11 +1,11 @@
 {
   "manifest_version": 3,
   "name": "__MSG_extName__",
-  "short_name": "KinGuard",
-  "version": "2.7.2",
+  "short_name": "NanaGuard",
+  "version": "2.8.0",
   "description": "__MSG_extDescription__",
   "author": "r00tmebaby",
-  "homepage_url": "https://github.com/r00tmebaby/KinGuard",
+  "homepage_url": "https://github.com/r00tmebaby/NanaGuard",
   "default_locale": "en",
   "minimum_chrome_version": "116",
   "icons": {
@@ -14,91 +14,40 @@
     "48": "icons/icon-48.png",
     "128": "icons/icon-128.png"
   },
-  "permissions": [
-    "activeTab",
-    "contextMenus",
-    "declarativeNetRequest",
-    "offscreen",
-    "scripting",
-    "storage",
-    "tabs"
-  ],
-  "host_permissions": [
-    "<all_urls>"
-  ],
+  "permissions": ["activeTab", "contextMenus", "declarativeNetRequest", "offscreen", "scripting", "storage", "tabs"],
+  "host_permissions": ["<all_urls>"],
   "content_security_policy": {
     "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
   },
   "background": {
     "service_worker": "src/background.js",
-    "scripts": [
-      "src/common.js",
-      "src/content/ai-signals.js",
-      "src/background.js"
-    ]
+    "scripts": ["src/common.js", "src/content/ai-signals.js", "src/background.js"]
   },
   "content_scripts": [
     {
-      "matches": [
-        "<all_urls>"
-      ],
-      "js": [
-        "src/common.js",
-        "src/content/procedural.js",
-        "src/content/smart.js",
-        "src/content/warn-ui.js",
-        "src/content/guard.js",
-        "src/content/ai-signals.js",
-        "src/content/youtube-guard.js",
-        "src/content/nag.js",
-        "src/content/isolated.js"
-      ],
+      "matches": ["<all_urls>"],
+      "js": ["src/common.js", "src/content/procedural.js", "src/content/smart.js", "src/content/warn-ui.js", "src/content/guard.js", "src/content/ai-signals.js", "src/content/youtube-guard.js", "src/content/nag.js", "src/content/isolated.js"],
       "run_at": "document_start",
       "all_frames": true
     }
   ],
   "declarative_net_request": {
     "rule_resources": [
-      {
-        "id": "blocklist",
-        "enabled": true,
-        "path": "rules/blocklist.json"
-      },
-      {
-        "id": "security",
-        "enabled": true,
-        "path": "rules/net-security.json"
-      },
-      {
-        "id": "ads",
-        "enabled": true,
-        "path": "rules/net-ads.json"
-      },
-      {
-        "id": "privacy",
-        "enabled": true,
-        "path": "rules/net-privacy.json"
-      },
-      {
-        "id": "annoyances",
-        "enabled": true,
-        "path": "rules/net-annoyances.json"
-      }
+      { "id": "blocklist", "enabled": true, "path": "rules/blocklist.json" },
+      { "id": "security", "enabled": true, "path": "rules/net-security.json" },
+      { "id": "ads", "enabled": true, "path": "rules/net-ads.json" },
+      { "id": "privacy", "enabled": true, "path": "rules/net-privacy.json" },
+      { "id": "annoyances", "enabled": true, "path": "rules/net-annoyances.json" }
     ]
   },
   "web_accessible_resources": [
     {
-      "resources": [
-        "resources/*",
-        "src/blocked/*"
-      ],
-      "matches": [
-        "<all_urls>"
-      ]
+      "resources": ["resources/*", "src/blocked/*"],
+      "matches": ["<all_urls>"]
     }
   ],
   "action": {
-    "default_title": "KinGuard",
+    "default_title": "NanaGuard",
     "default_popup": "src/popup/popup.html",
     "default_icon": {
       "16": "icons/icon-16.png",
@@ -111,13 +60,9 @@
   },
   "browser_specific_settings": {
     "gecko": {
-      "id": "kinguard@r00tmebaby",
+      "id": "nanaguard@r00tmebaby",
       "strict_min_version": "128.0",
-      "data_collection_permissions": {
-        "required": [
-          "none"
-        ]
-      }
+      "data_collection_permissions": { "required": ["none"] }
     }
   }
 }

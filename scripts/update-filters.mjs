@@ -60,7 +60,7 @@ function evalCondition(expr) {
 }
 
 async function fetchText(url) {
-  const res = await fetch(url, { headers: { "user-agent": "kinguard-filter-builder" } });
+  const res = await fetch(url, { headers: { "user-agent": "nanaguard-filter-builder" } });
   if (!res.ok) throw new Error(`${res.status} ${url}`);
   return res.text();
 }
@@ -394,8 +394,8 @@ const lists = await Promise.all(
 
 // Refuse to build from partial data: a failed list would silently drop protections.
 const failedLists = lists.filter((l) => l.failed);
-if (failedLists.length && !process.env.KINGUARD_ALLOW_PARTIAL) {
-  console.error("Aborting, lists failed to download: " + failedLists.map((l) => l.id).join(", ") + " (set KINGUARD_ALLOW_PARTIAL=1 to build anyway)");
+if (failedLists.length && !process.env.NANAGUARD_ALLOW_PARTIAL) {
+  console.error("Aborting, lists failed to download: " + failedLists.map((l) => l.id).join(", ") + " (set NANAGUARD_ALLOW_PARTIAL=1 to build anyway)");
   process.exit(1);
 }
 

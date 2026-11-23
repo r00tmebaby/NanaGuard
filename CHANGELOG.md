@@ -1,6 +1,9 @@
 # Changelog
 
-All notable changes to KinGuard. Filter-list refreshes published by the weekly CI job bump the patch version and are not listed individually.
+All notable changes to NanaGuard. Filter-list refreshes published by the weekly CI job bump the patch version and are not listed individually.
+
+## 2.8.0
+- **Renamed to NanaGuard** (previously KinGuard), because several other scam-protection products for older people use the KinGuard name. Repository moved to `r00tmebaby/NanaGuard`; old links redirect. Settings, lists and statistics are kept, and old KinGuard backup files can still be imported.
 
 ## 2.7.1
 - **"Find source" on YouTube is reliable:** shows "Opening Google Lens…" when clicked, and if the video frame can't be captured (KinGuard was updated while the tab was open, or site access is set to "on click") it searches YouTube's thumbnail of the video instead.

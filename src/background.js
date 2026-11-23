@@ -1,4 +1,4 @@
-/* KinGuard background: wires settings to scripts, CSS and network rules, serves per-site
+/* NanaGuard background: wires settings to scripts, CSS and network rules, serves per-site
  * cosmetic filters, learns ads/ad networks, keeps counters, closes popunder tabs and
  * routes dangerous sites to the warning page. */
 "use strict";
@@ -55,7 +55,7 @@ const baseDomain = (host) => BLK.baseDomain(host);
 /* ---------------- apply settings ---------------- */
 
 let chain = Promise.resolve();
-const queue = (fn) => (chain = chain.then(fn, fn).catch((e) => console.error("KinGuard:", e)));
+const queue = (fn) => (chain = chain.then(fn, fn).catch((e) => console.error("NanaGuard:", e)));
 // Network rules first (fast, immediate effect), then content scripts (slower).
 const applySettings = () => queue(async () => {
   await updateDynamicRules();
@@ -85,7 +85,7 @@ async function register(scripts) {
       try {
         await api.scripting.registerContentScripts([s]);
       } catch (e) {
-        console.warn(`KinGuard: ${s.id} failed (${e.message}); retrying without excludes`);
+        console.warn(`NanaGuard: ${s.id} failed (${e.message}); retrying without excludes`);
         delete s.excludeMatches;
         await api.scripting.registerContentScripts([s]).catch(() => {});
       }
@@ -166,7 +166,7 @@ async function updateRulesets() {
     try {
       await api.declarativeNetRequest.updateEnabledRulesets({ enableRulesetIds: [id] });
     } catch (e) {
-      console.warn(`KinGuard: could not enable ${id}: ${e.message}`);
+      console.warn(`NanaGuard: could not enable ${id}: ${e.message}`);
     }
   }
 }
@@ -206,7 +206,7 @@ async function updateDynamicRules() {
     await api.declarativeNetRequest.updateDynamicRules({ removeRuleIds: current.map((r) => r.id), addRules: rules });
   } catch (e) {
     // Browsers without regex redirects: fall back to plain blocking.
-    console.warn("KinGuard: dynamic rules fallback", e.message);
+    console.warn("NanaGuard: dynamic rules fallback", e.message);
     const plain = rules.map((r) => r.action.type === "redirect" ? { ...r, action: { type: "block" },
       condition: { requestDomains: r.condition.requestDomains, resourceTypes: ["main_frame"] } } : r);
     await api.declarativeNetRequest.updateDynamicRules({ removeRuleIds: current.map((r) => r.id), addRules: plain });
@@ -216,7 +216,7 @@ async function updateDynamicRules() {
 async function updateIcon() {
   const { enabled } = await BLK.getSettings();
   await api.action.setIcon({ path: enabled ? ICON_ON : ICON_OFF });
-  await api.action.setTitle({ title: enabled ? "KinGuard – protecting you" : "KinGuard – paused" });
+  await api.action.setTitle({ title: enabled ? "NanaGuard – protecting you" : "NanaGuard – paused" });
 }
 
 /* ---------------- per-site cosmetics ---------------- */
@@ -257,7 +257,7 @@ function injectCss(tabId, frameId, rules) {
   // One rule per line: an invalid selector only invalidates itself.
   return api.scripting
     .insertCSS({ target: { tabId, frameIds: [frameId] }, css: rules.join("\n"), origin: "USER" })
-    .catch((e) => console.warn("KinGuard: insertCSS failed", e.message));
+    .catch((e) => console.warn("NanaGuard: insertCSS failed", e.message));
 }
 
 async function hideElement(tab, frameId, selector) {
@@ -311,7 +311,7 @@ function learn(tab, selector, networks) {
     }
     if (changed) await api.storage.local.set({ learnedNetworks: nets });
     if (newlyBlocked) applyDynamic();
-  }).catch((e) => console.error("KinGuard learn:", e));
+  }).catch((e) => console.error("NanaGuard learn:", e));
   return learnChain;
 }
 
@@ -377,7 +377,7 @@ async function countHidden(tabId) {
 }
 
 let statChain = Promise.resolve();
-const serialize = (fn) => (statChain = statChain.then(fn).catch((e) => console.error("KinGuard:", e)));
+const serialize = (fn) => (statChain = statChain.then(fn).catch((e) => console.error("NanaGuard:", e)));
 
 function record(kind, tabId) {
   if (!(kind in BLK.STAT_LABELS)) return;
@@ -439,7 +439,7 @@ async function officialSite(name) {
   const key = clean.toLowerCase();
   const cache = await BLK.getLocal("wdCache", {});
   if (cache[key] && Date.now() - cache[key].t < 30 * 864e5) return cache[key].d;
-  const headers = { "Api-User-Agent": `KinGuard/${api.runtime.getManifest().version} (https://github.com/r00tmebaby/KinGuard)` };
+  const headers = { "Api-User-Agent": `NanaGuard/${api.runtime.getManifest().version} (https://github.com/r00tmebaby/NanaGuard)` };
   let domains = [];
   try {
     const search = await fetch(`https://www.wikidata.org/w/api.php?action=wbsearchentities&format=json&language=en&type=item&limit=10&search=${encodeURIComponent(clean)}`, { headers }).then((r) => r.json());
@@ -484,18 +484,18 @@ async function rebuildMenus() {
   await menus.removeAll();
   const { enabled, guards } = await BLK.getSettings();
   if (enabled && guards.ai) {
-    menus.create({ id: "kg-img-check", title: "Is this image real or AI? (KinGuard)", contexts: ["image"] });
+    menus.create({ id: "kg-img-check", title: "Is this image real or AI? (NanaGuard)", contexts: ["image"] });
     menus.create({ id: "kg-img-lens", title: "Find where this image came from (Google Lens)", contexts: ["image"] });
   }
   if (!enabled || !guards.factcheck) return;
-  menus.create({ id: "blk", title: "Check facts with KinGuard", contexts: MENU_CONTEXTS });
+  menus.create({ id: "blk", title: "Check facts with NanaGuard", contexts: MENU_CONTEXTS });
   for (const [engine, title] of Object.entries(BLK.FACT_ENGINES)) {
     menus.create({ id: `blk-${engine}`, parentId: "blk", title, contexts: MENU_CONTEXTS });
   }
 }
 
 async function updateMenus() {
-  return (menuChain = menuChain.then(rebuildMenus).catch((e) => console.error("KinGuard menus:", e)));
+  return (menuChain = menuChain.then(rebuildMenus).catch((e) => console.error("NanaGuard menus:", e)));
 }
 
 function openCheck(engine, text, pageUrl, tab) {
@@ -613,7 +613,7 @@ async function ensureOcrPage() {
 async function runOcr(dataUrls) {
   try {
     await ensureOcrPage();
-    const r = await api.runtime.sendMessage({ target: "kinguard-ocr", images: dataUrls });
+    const r = await api.runtime.sendMessage({ target: "nanaguard-ocr", images: dataUrls });
     return r && r.ok ? String(r.text || "") : "";
   } catch {
     return "";
@@ -685,7 +685,7 @@ async function checkImage(info, tab) {
     return showCard({
       level: "medium",
       title: "Couldn't check this image",
-      lines: ["The website did not allow KinGuard to read the image file."],
+      lines: ["The website did not allow NanaGuard to read the image file."],
     });
   }
   const result = BlkAI.scanImageBytes(new Uint8Array(buf));
@@ -703,7 +703,7 @@ async function checkImage(info, tab) {
   record("ailabel", tab.id);
   const reasons = Array.isArray(result.reasons) && result.reasons.length
     ? result.reasons
-    : ["KinGuard found AI signals in this image."];
+    : ["NanaGuard found AI signals in this image."];
   return showCard({
     level: "high",
     title: IMAGE_VERDICTS[level] || IMAGE_VERDICTS.possible,
@@ -728,15 +728,15 @@ async function openImageLens(info, tab) {
 
 function handleImageMenu(info, tab) {
   const run = info.menuItemId === "kg-img-lens" ? openImageLens : checkImage;
-  return run(info, tab).catch((e) => console.error("KinGuard image:", e));
+  return run(info, tab).catch((e) => console.error("NanaGuard image:", e));
 }
 
 /* ---------------- update notice (manual installs only) ---------------- */
 
 // Store installs are updated by the browser. Manually loaded copies (unpacked / temporary add-on)
-// can't update themselves, so at most once a day KinGuard asks GitHub for the latest release and
+// can't update themselves, so at most once a day NanaGuard asks GitHub for the latest release and
 // shows "new version available" in the popup and Settings. Nothing about the user is sent.
-const RELEASES_API = "https://api.github.com/repos/r00tmebaby/KinGuard/releases/latest";
+const RELEASES_API = "https://api.github.com/repos/r00tmebaby/NanaGuard/releases/latest";
 const UPDATE_EVERY_MS = 20 * 60 * 60 * 1000;
 
 function isNewer(latest, current) {
@@ -775,7 +775,7 @@ async function checkForUpdate(force = false) {
       ? { version, page: String(rel.html_url || ""), chromeZip: asset(/chrome/i), firefoxZip: asset(/firefox/i) }
       : null;
     await api.storage.local.set({ updateInfo: info });
-    await api.action.setTitle({ title: info ? `KinGuard – version ${version} available` : "KinGuard – protecting you" });
+    await api.action.setTitle({ title: info ? `NanaGuard – version ${version} available` : "NanaGuard – protecting you" });
     return info;
   } catch {
     return null;
@@ -955,4 +955,4 @@ api.tabs.onRemoved.addListener((tabId) => {
 });
 
 // Expose for tests/debugging in the service worker console.
-globalThis.kinguard = { applySettings, cosmeticFor, learn, getMeta, officialSite, updateMenus, openCheck, ocrVideo, lensFrame, checkImage };
+globalThis.nanaguard = { applySettings, cosmeticFor, learn, getMeta, officialSite, updateMenus, openCheck, ocrVideo, lensFrame, checkImage };

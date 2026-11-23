@@ -1,5 +1,5 @@
 /*
- * KinGuard AI-content signal detector (BlkAI).
+ * NanaGuard AI-content signal detector (BlkAI).
  *
  * This module reads TEXT that uploaders and platforms leave behind:
  * titles, descriptions, keywords, channel names, hashtags, platform labels

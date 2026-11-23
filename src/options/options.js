@@ -24,10 +24,10 @@
     const info = res && res.ok ? res.value : null;
     const current = api.runtime.getManifest().version;
     if (info && info.version) {
-      $("updateStatus").textContent = `KinGuard ${info.version} is available (you have ${current}).`;
+      $("updateStatus").textContent = `NanaGuard ${info.version} is available (you have ${current}).`;
       $("dlChrome").href = info.chromeZip || info.page;
       $("dlFirefox").href = info.firefoxZip || info.page;
-      $("dlPage").href = info.page || "https://github.com/r00tmebaby/KinGuard/releases/latest";
+      $("dlPage").href = info.page || "https://github.com/r00tmebaby/NanaGuard/releases/latest";
       $("updateHow").hidden = false;
     } else {
       $("updateStatus").textContent = `You have the latest version (${current}).`;
@@ -261,7 +261,7 @@
   });
 
   $("reset").addEventListener("click", async () => {
-    if (!confirm("Reset all KinGuard statistics?")) return;
+    if (!confirm("Reset all NanaGuard statistics?")) return;
     await api.storage.local.set({ stats: {} });
   });
 
@@ -272,9 +272,9 @@
     const learnedSites = await BLK.getLocal("learnedSites", {});
     const learnedNetworks = await BLK.getLocal("learnedNetworks", {});
     // Password fingerprints are deliberately NOT exported.
-    const data = { kinguard: 1, allowlist, blocklist, lists, smart, smartOff, guards, trusted, hidden, learnedSites, learnedNetworks };
+    const data = { nanaguard: 1, allowlist, blocklist, lists, smart, smartOff, guards, trusted, hidden, learnedSites, learnedNetworks };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-    const a = el("a", { href: URL.createObjectURL(blob), download: "kinguard-backup.json" });
+    const a = el("a", { href: URL.createObjectURL(blob), download: "nanaguard-backup.json" });
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   });
@@ -285,7 +285,7 @@
     if (!file) return;
     try {
       const data = JSON.parse(await file.text());
-      if (data.kinguard !== 1) throw new Error("not a KinGuard backup");
+      if (data.nanaguard !== 1 && data.kinguard !== 1) throw new Error("not a NanaGuard backup");
       const clean = (list) =>
         [...new Set((Array.isArray(list) ? list : []).map(BLK.normalizeDomain).filter(Boolean))]
           .sort()

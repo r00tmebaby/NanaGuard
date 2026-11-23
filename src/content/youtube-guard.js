@@ -137,7 +137,7 @@ var BlkYouTube = (() => {
       statusEl.title = "";
       return;
     }
-    const why = reasons.length ? reasons.join(" · ") : "KinGuard found an AI signal";
+    const why = reasons.length ? reasons.join(" · ") : "NanaGuard found an AI signal";
     statusEl.hidden = false;
     statusEl.className = "s " + s.cls;
     statusEl.textContent = s.text;
@@ -146,8 +146,8 @@ var BlkYouTube = (() => {
 
   function addCheckButton(showStatus = false, showButtons = true) {
     const host = document.querySelector("ytd-watch-metadata #title");
-    if (!host || host.querySelector("kinguard-check")) return;
-    const el = document.createElement("kinguard-check");
+    if (!host || host.querySelector("nanaguard-check")) return;
+    const el = document.createElement("nanaguard-check");
     el.style.cssText = "all:initial;display:inline-block;margin:6px 0 2px;";
     const root = el.attachShadow({ mode: "closed" });
     const style = document.createElement("style");
@@ -249,7 +249,7 @@ var BlkYouTube = (() => {
     const pause = () => { const v = document.querySelector("#movie_player video"); if (v && !v.paused) v.pause(); };
     // Labels found in YouTube's own page data (first load and next-video navigation), from youtube.js.
     const labelled = new Set();
-    document.addEventListener("kinguard:ailabel", (e) => { labelled.add(String(e.detail || videoId())); setTimeout(check, 0); });
+    document.addEventListener("nanaguard:ailabel", (e) => { labelled.add(String(e.detail || videoId())); setTimeout(check, 0); });
     let shownFor = "";
     // Watermark OCR per video: text read from the frame corners (AI tool watermarks such as Sora/Veo logos).
     const ocr = new Map();

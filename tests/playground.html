@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>KinGuard test playground</title>
+<title>NanaGuard test playground</title>
 <style>
   :root { color-scheme: light dark; --bg:#fff; --fg:#111827; --muted:#6b7280; --card:#f4f5f7; --border:#e5e7eb; --accent:#4f46e5; }
   @media (prefers-color-scheme: dark) { :root { --bg:#111318; --fg:#e5e7eb; --muted:#9ca3af; --card:#1b1e25; --border:#2a2e37; --accent:#818cf8; } }
@@ -24,9 +24,9 @@
 </head>
 <body>
 <main>
-  <h1>KinGuard test playground</h1>
-  <p class="muted">Open this page with KinGuard installed. Every test is harmless – nothing here is a real ad or scam.
-  <b>Note:</b> for "file://" pages in Chrome, enable <i>Allow access to file URLs</i> on the KinGuard extension details page, or serve this folder with <code>npx serve tests</code>.</p>
+  <h1>NanaGuard test playground</h1>
+  <p class="muted">Open this page with NanaGuard installed. Every test is harmless – nothing here is a real ad or scam.
+  <b>Note:</b> for "file://" pages in Chrome, enable <i>Allow access to file URLs</i> on the NanaGuard extension details page, or serve this folder with <code>npx serve tests</code>.</p>
 
   <div class="card">
     <div class="row"><b>1. Popup without a real click</b><button id="t1">Run</button></div>
@@ -64,7 +64,7 @@
 
   <div class="card">
     <div class="row"><b>7. Fake "virus" screen</b><button id="t7">Show</button></div>
-    <div class="muted">Adds a full-screen fake Windows warning. KinGuard should remove it within a second.</div>
+    <div class="muted">Adds a full-screen fake Windows warning. NanaGuard should remove it within a second.</div>
     <div class="result" id="r7"></div>
   </div>
 
@@ -83,7 +83,7 @@
   <div class="card">
     <div class="row"><b>10. Hide it yourself</b></div>
     <div class="my-banner">ANNOYING BANNER – try hiding me</div>
-    <div class="muted">Click the KinGuard icon → <b>Hide an ad on this page</b> → click this pink banner → <b>Hide it</b>. Reload: it stays hidden.</div>
+    <div class="muted">Click the NanaGuard icon → <b>Hide an ad on this page</b> → click this pink banner → <b>Hide it</b>. Reload: it stays hidden.</div>
   </div>
 </main>
 
@@ -132,7 +132,7 @@
     document.getElementById("scam")?.remove();
     const d = document.createElement("div");
     d.id = "scam";
-    d.innerHTML = "<div><h2>⚠ Windows Defender Security Warning</h2><p>Your computer has been infected with a virus (Trojan Spyware).</p><p>Do not close this page or restart your computer.</p><p>Call Microsoft Support now: +1 (888) 555-0199 (Toll-Free)</p><p style='font-size:14px'>(test overlay – click to close if KinGuard missed it)</p></div>";
+    d.innerHTML = "<div><h2>⚠ Windows Defender Security Warning</h2><p>Your computer has been infected with a virus (Trojan Spyware).</p><p>Do not close this page or restart your computer.</p><p>Call Microsoft Support now: +1 (888) 555-0199 (Toll-Free)</p><p style='font-size:14px'>(test overlay – click to close if NanaGuard missed it)</p></div>";
     d.onclick = () => d.remove();
     document.body.appendChild(d);
     setTimeout(() => say("r7", !document.getElementById("scam"), document.getElementById("scam") ? "Fake screen still there" : "Fake screen removed"), 2000);

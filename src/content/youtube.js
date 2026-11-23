@@ -10,7 +10,7 @@
   const nativeDispatch = EventTarget.prototype.dispatchEvent;
   const report = () => {
     try {
-      nativeDispatch.call(document, new CustomEvent("kinguard:blocked", { detail: "video" }));
+      nativeDispatch.call(document, new CustomEvent("nanaguard:blocked", { detail: "video" }));
     } catch {
       /* ignore */
     }
@@ -81,7 +81,7 @@
       if (!r.contents || !(r.contents.twoColumnWatchNextResults || r.contents.singleColumnWatchNextResults)) return;
       const id = (r.currentVideoEndpoint && r.currentVideoEndpoint.watchEndpoint && r.currentVideoEndpoint.watchEndpoint.videoId) || "";
       if (AI_LABEL.test(JSON.stringify(r.contents))) {
-        nativeDispatch.call(document, new CustomEvent("kinguard:ailabel", { detail: String(id) }));
+        nativeDispatch.call(document, new CustomEvent("nanaguard:ailabel", { detail: String(id) }));
       }
     } catch {
       /* never break YouTube */

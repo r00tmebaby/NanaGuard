@@ -20,7 +20,7 @@
   };
   const send = (kind) => message({ cmd: "blocked", kind });
 
-  document.addEventListener("kinguard:blocked", (e) => {
+  document.addEventListener("nanaguard:blocked", (e) => {
     const kind = String(e.detail);
     if (!(kind in BLK.STAT_LABELS)) return;
     if (active === null) queued.push(kind);
@@ -29,7 +29,7 @@
 
   // Warnings raised in the page context (e.g. fake-CAPTCHA clipboard trick), possibly in an
   // iframe: route through the background so the top frame shows them.
-  document.addEventListener("kinguard:warn", (e) => message({ cmd: "warn", kind: String(e.detail) }));
+  document.addEventListener("nanaguard:warn", (e) => message({ cmd: "warn", kind: String(e.detail) }));
 
   const WARNINGS = {
     clickfix: {
@@ -38,7 +38,7 @@
       title: "Stop! Don't paste anything",
       lines: [
         "This page secretly tried to copy a dangerous command. It wants you to press Windows + R (or open Terminal) and paste it. That would install a virus.",
-        "Real websites never ask you to do this. KinGuard replaced the command with a harmless message.",
+        "Real websites never ask you to do this. NanaGuard replaced the command with a harmless message.",
       ],
       actions: [
         { label: "Close this page", kind: "primary", run: () => message({ cmd: "closeTab" }) },

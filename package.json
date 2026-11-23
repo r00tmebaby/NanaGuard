@@ -1,7 +1,7 @@
 {
-  "name": "kinguard",
+  "name": "nanaguard",
   "private": true,
-  "description": "KinGuard – ad, popup & scam blocker browser extension",
+  "description": "NanaGuard – ad, popup & scam blocker browser extension",
   "type": "module",
   "scripts": {
     "filters": "node scripts/update-filters.mjs",

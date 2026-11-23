@@ -1,6 +1,6 @@
 # Builds store-ready packages:
-#   dist/chrome/  + dist/kinguard-chrome-<version>.zip   (Chrome, Edge, Brave, Opera)
-#   dist/firefox/ + dist/kinguard-firefox-<version>.zip  (Firefox / AMO)
+#   dist/chrome/  + dist/nanaguard-chrome-<version>.zip   (Chrome, Edge, Brave, Opera)
+#   dist/firefox/ + dist/nanaguard-firefox-<version>.zip  (Firefox / AMO)
 # Works on Windows PowerShell 5.1 and PowerShell 7 (Linux/macOS CI).
 param([string]$OutDir = "dist")
 $ErrorActionPreference = "Stop"
@@ -34,7 +34,7 @@ foreach ($target in "chrome", "firefox") {
   [IO.File]::WriteAllText((Join-Path $dir "manifest.json"), ($m | ConvertTo-Json -Depth 20), $utf8)
 
   # Zip manually so entry names always use "/" (Compress-Archive on 5.1 uses "\", which AMO rejects).
-  $zipPath = Join-Path $dist "kinguard-$target-$version.zip"
+  $zipPath = Join-Path $dist "nanaguard-$target-$version.zip"
   $zip = [IO.Compression.ZipFile]::Open($zipPath, "Create")
   try {
     Get-ChildItem $dir -Recurse -File | ForEach-Object {

@@ -14,7 +14,7 @@
     try {
       nativeDispatch.call(
         document,
-        new NativeCustomEvent("kinguard:blocked", { detail: String(kind) })
+        new NativeCustomEvent("nanaguard:blocked", { detail: String(kind) })
       );
     } catch {
       /* document not ready / detached */
@@ -22,15 +22,15 @@
   };
   const warn = (kind) => {
     try {
-      nativeDispatch.call(document, new NativeCustomEvent("kinguard:warn", { detail: String(kind) }));
+      nativeDispatch.call(document, new NativeCustomEvent("nanaguard:warn", { detail: String(kind) }));
     } catch {
       /* ignore */
     }
   };
 
   // Flags set by background.js (flag file injected just before this one, before any page script).
-  const FLAGS = window.__kinguardFlags || {};
-  try { delete window.__kinguardFlags; } catch { /* ignore */ }
+  const FLAGS = window.__nanaguardFlags || {};
+  try { delete window.__nanaguardFlags; } catch { /* ignore */ }
 
   /* ---------- fake "verify you're human" (ClickFix) clipboard guard ---------- */
   // A command interpreter / LOLBin in the copied text…
@@ -40,7 +40,7 @@
   // …disguised as a human check, or on a page telling you to open Run/Terminal and paste.
   const BAIT = /(captcha|i am not a robot|i'?m not a robot|not a robot|i am human|verif(y|ication)|cloudflare|ray id|✅|✔)/i;
   const PAGE_BAIT = /(win(dows)?\s*(key)?\s*(\+|and)\s*r\b|⊞\s*\+?\s*r\b|press\s+(the\s+)?windows\s+(key|button)|run dialog|ctrl\s*\+\s*v|cmd\s*\+\s*v|command\s*\+\s*v|paste\b.{0,30}\b(terminal|run box|run window|command))/i;
-  const SAFE_TEXT = "STOP! KinGuard blocked a dangerous command from a website. Do not paste anything a website tells you to. Close this window.";
+  const SAFE_TEXT = "STOP! NanaGuard blocked a dangerous command from a website. Do not paste anything a website tells you to. Close this window.";
   const pageBait = () => {
     for (const d of [document, (() => { try { return window.top.document; } catch { return null; } })()]) {
       if (d && d.body && PAGE_BAIT.test(d.body.innerText.slice(0, 20000))) return true;
@@ -237,7 +237,7 @@
       Object.defineProperty(o, key, { ...desc, ...next });
     };
     const blockedPromise = (msg) =>
-      W.Promise.reject(new W.DOMException(msg || "Blocked by KinGuard", "NotAllowedError"));
+      W.Promise.reject(new W.DOMException(msg || "Blocked by NanaGuard", "NotAllowedError"));
 
     // Gesture listeners for this realm.
     for (const type of ["pointerdown", "click", "keydown"]) {
@@ -278,7 +278,7 @@
 
     // Synthetic click events on links: hook dispatchEvent on <a> elements only (an own property
     // on HTMLAnchorElement.prototype), not on every EventTarget, so the page's other events never
-    // pass through KinGuard's code (and its warnings aren't attributed to us).
+    // pass through NanaGuard's code (and its warnings aren't attributed to us).
     if (W.HTMLAnchorElement) {
       const nativeDispatchEvent = W.EventTarget.prototype.dispatchEvent;
       const anchorDispatch = function dispatchEvent(ev) {
@@ -312,12 +312,12 @@
     // window.open. Their window is hardened the moment the page reaches it via
     // contentWindow / contentDocument (below). DOM insertion methods (appendChild, append,
     // innerHTML, …) are deliberately NOT wrapped: they are hot paths, and wrapping them made
-    // Chrome attribute pages' own console warnings to KinGuard.
+    // Chrome attribute pages' own console warnings to NanaGuard.
 
     for (const proto of [W.HTMLIFrameElement.prototype, W.HTMLFrameElement && W.HTMLFrameElement.prototype]) {
       // Pages (feature detection, frameworks) sometimes read these on non-iframe objects, e.g.
       // HTMLIFrameElement.prototype.contentWindow. The native getter then throws "Illegal
-      // invocation", which Chrome would list under KinGuard's errors because our wrapper is on
+      // invocation", which Chrome would list under NanaGuard's errors because our wrapper is on
       // the stack. Return null instead (what a frame without a window returns).
       wrapAccessor(proto, "contentWindow", (d) => ({
         get() {
@@ -360,7 +360,7 @@
         function subscribe() {
           if (realPermission() === "granted") return orig.apply(this, arguments);
           report("notification");
-          return blockedPromise("Push subscription blocked by KinGuard");
+          return blockedPromise("Push subscription blocked by NanaGuard");
         }
       );
     }
@@ -389,7 +389,7 @@
       function requestFullscreen() {
         if (isMedia(this) || recentRealClick()) return orig.apply(this, arguments);
         report("fullscreen");
-        return blockedPromise("Fullscreen blocked by KinGuard");
+        return blockedPromise("Fullscreen blocked by NanaGuard");
       }
     );
     for (const key of ["webkitRequestFullscreen", "webkitRequestFullScreen", "mozRequestFullScreen"]) {

@@ -1,4 +1,4 @@
-/* KinGuard OCR page: reads text from video-frame images with one local Tesseract worker. */
+/* NanaGuard OCR page: reads text from video-frame images with one local Tesseract worker. */
 "use strict";
 
 const OCR_IDLE_MS = 90000;
@@ -73,7 +73,7 @@ function enqueueRecognition(images) {
 try {
   api.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     try {
-      if (!msg || msg.target !== "kinguard-ocr") return false;
+      if (!msg || msg.target !== "nanaguard-ocr") return false;
       if (!sender || sender.id !== api.runtime.id) return false;
 
       const images = Array.isArray(msg.images)

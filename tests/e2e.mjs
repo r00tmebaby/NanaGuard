@@ -203,7 +203,7 @@ try {
   // Cross-site learning: same network on 3 sites → blocked everywhere.
   await worker.evaluate(async () => {
     for (const site of ["https://news-a.test/", "https://blog-b.test/", "https://shop-c.test/"]) {
-      await kinguard.learn({ url: site }, null, ["ads.unknown-network.test"]);
+      await nanaguard.learn({ url: site }, null, ["ads.unknown-network.test"]);
     }
   });
   await sleep(1500);
@@ -285,7 +285,7 @@ try {
 
   /* --- scam & fraud guards --- */
   const stat = async (kind) => (await worker.evaluate(async () => (await chrome.storage.local.get("stats")).stats || {}))[kind] || 0;
-  const hasWarning = (p) => p.evaluate(() => !!document.querySelector("kinguard-warning"));
+  const hasWarning = (p) => p.evaluate(() => !!document.querySelector("nanaguard-warning"));
   const visit = async (url, wait = 2500) => {
     const p = await browser.newPage();
     await p.goto(url, { waitUntil: "load" }).catch(() => {});
@@ -309,7 +309,7 @@ try {
   check("phishing: homograph (Cyrillic аpple) warned", (await hasWarning(g)) && (await stat("phishing")) > before);
   await g.close();
 
-  const wd = await worker.evaluate(() => kinguard.officialSite("Monzo"));
+  const wd = await worker.evaluate(() => nanaguard.officialSite("Monzo"));
   check("wikidata: official website lookup works", wd.includes("monzo.com"), JSON.stringify(wd));
   before = await stat("phishing");
   g = await visit(`http://monzo-account.test:${port}/login-monzo`, 6000);
@@ -460,7 +460,7 @@ try {
   await g.bringToFront();
   const vTabId = await worker.evaluate(async () => (await chrome.tabs.query({ active: true, currentWindow: true }))[0].id);
   const vRect = await g.evaluate(() => { const r = document.getElementById("v").getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height, dpr: devicePixelRatio }; });
-  const ocr = await worker.evaluate((id, r) => kinguard.ocrVideo(id, r, r.dpr), vTabId, vRect);
+  const ocr = await worker.evaluate((id, r) => nanaguard.ocrVideo(id, r, r.dpr), vTabId, vRect);
   check("real-or-ai: watermark read from the video frame (local OCR)", /sora/i.test(ocr.text || ""), JSON.stringify((ocr.text || "").slice(0, 80)));
   const wm = await worker.evaluate(async (id, txt) => {
     const [{ result }] = await chrome.scripting.executeScript({ target: { tabId: id }, args: [txt], func: (t) => {
@@ -474,7 +474,7 @@ try {
   // Lens: "Find where this came from" captures the frame and posts it to Google Lens.
   let lensPost = null;
   const lensTabPromise = new Promise((res) => browser.once("targetcreated", res));
-  await worker.evaluate((id, r) => kinguard.lensFrame(id, r, r.dpr), vTabId, vRect);
+  await worker.evaluate((id, r) => nanaguard.lensFrame(id, r, r.dpr), vTabId, vRect);
   const lensTarget = await Promise.race([lensTabPromise, sleep(5000).then(() => null)]);
   if (lensTarget) {
     const lp = await lensTarget.page();
@@ -542,7 +542,7 @@ try {
   check("fact check: URLs built", fcUrl[0].startsWith("https://www.google.com/search?q=the%20moon") && fcUrl[1].startsWith("https://toolbox.google.com/factcheck/") &&
     fcUrl[2].startsWith("https://chatgpt.com/?q=") && fcUrl[3].startsWith("https://news.google.com/search?q="), fcUrl.slice(0, 4).join(" | "));
   check("fact check: headline shortened to keywords", fcUrl[4] === "Deutsche Bank $582 Epstein Payments", fcUrl[4]);
-  await worker.evaluate(() => kinguard.openCheck("factcheck", "drinking bleach cures covid", null, null));
+  await worker.evaluate(() => nanaguard.openCheck("factcheck", "drinking bleach cures covid", null, null));
   const fcTab = await waitFor(async () => (await browser.pages()).find((p) => p.url().includes("toolbox.google.com/factcheck")), 8000);
   check("fact check: opens in a new tab", !!fcTab);
   if (fcTab) await fcTab.close();
@@ -558,7 +558,7 @@ try {
     if (b) b.click();
   }).catch(() => {});
   await sleep(3000);
-  const ytButton = await ytp.evaluate(() => !!document.querySelector("ytd-watch-metadata kinguard-check")).catch(() => false);
+  const ytButton = await ytp.evaluate(() => !!document.querySelector("ytd-watch-metadata nanaguard-check")).catch(() => false);
   check("youtube: 'Check facts' button shown on real YouTube", ytButton, ytp.url().slice(0, 60));
   check("youtube: no false deepfake/AI warning on a normal video", !(await hasWarning(ytp)));
   if (ytButton) {
@@ -571,7 +571,7 @@ try {
       for (const c of [...(n.children || []), ...(n.shadowRoots || [])]) walk(c);
     };
     const host = (function find(n) {
-      if (n.nodeName === "KINGUARD-CHECK") return n;
+      if (n.nodeName === "NANAGUARD-CHECK") return n;
       for (const c of [...(n.children || []), ...(n.shadowRoots || [])]) { const f = find(c); if (f) return f; }
       return null;
     })(root);
@@ -624,7 +624,7 @@ try {
       const { root: r } = await session.send("DOM.getDocument", { depth: -1, pierce: true });
       let text = null;
       (function walk(n, inHost) {
-        const h = inHost || n.nodeName === "KINGUARD-CHECK";
+        const h = inHost || n.nodeName === "NANAGUARD-CHECK";
         const attrs = n.attributes || [];
         if (h && n.nodeName === "SPAN" && attrs.some((a) => /^s( |$)/.test(a))) {
           text = attrs.includes("hidden") ? "(hidden)" : (n.children || []).map((c) => c.nodeValue || "").join("");
@@ -638,7 +638,7 @@ try {
     check("youtube: no AI chip on a normal video (no meaningless 'none' badge)", normalChip === "(hidden)" || normalChip === null, String(normalChip));
 
     // Simulate YouTube loading watch data that carries the AI disclosure (as on a labelled video):
-    // the page's own JSON.parse goes through KinGuard's hook → chip turns amber + banner.
+    // the page's own JSON.parse goes through NanaGuard's hook → chip turns amber + banner.
     await ytp.evaluate(() => JSON.parse(JSON.stringify({
       currentVideoEndpoint: { watchEndpoint: { videoId: new URL(location.href).searchParams.get("v") } },
       contents: { twoColumnWatchNextResults: { results: { howThisWasMade: { title: "How this content was made",
@@ -674,9 +674,9 @@ try {
   /* --- update notice for manual installs (GitHub answer simulated) --- */
   const upd = await worker.evaluate(async () => {
     const realFetch = globalThis.fetch;
-    globalThis.fetch = async (u, o) => String(u).includes("api.github.com/repos/r00tmebaby/KinGuard/releases/latest")
-      ? new Response(JSON.stringify({ tag_name: "v99.0.0", html_url: "https://github.com/r00tmebaby/KinGuard/releases/tag/v99.0.0",
-          assets: [{ name: "kinguard-chrome-99.0.0.zip", browser_download_url: "https://example.test/c.zip" }, { name: "kinguard-firefox-99.0.0.zip", browser_download_url: "https://example.test/f.zip" }] }), { status: 200 })
+    globalThis.fetch = async (u, o) => String(u).includes("api.github.com/repos/r00tmebaby/NanaGuard/releases/latest")
+      ? new Response(JSON.stringify({ tag_name: "v99.0.0", html_url: "https://github.com/r00tmebaby/NanaGuard/releases/tag/v99.0.0",
+          assets: [{ name: "nanaguard-chrome-99.0.0.zip", browser_download_url: "https://example.test/c.zip" }, { name: "nanaguard-firefox-99.0.0.zip", browser_download_url: "https://example.test/f.zip" }] }), { status: 200 })
       : realFetch(u, o);
     const info = await checkForUpdate(true);
     globalThis.fetch = realFetch;
