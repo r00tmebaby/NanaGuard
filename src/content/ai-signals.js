@@ -304,15 +304,15 @@ var BlkAI = (() => {
       const addReason = (r) => {
         if (r && !reasons.includes(r)) reasons.push(r);
       };
-      if (labelHit) addReason("The platform labels this as AI-generated or altered");
-      if (watermarks.length) addReason("AI watermark visible in the video: " + watermarks.join(", "));
-      if (toolNames.length) addReason("Names an AI generator: " + toolNames.join(", "));
+      if (labelHit) addReason(BLK.t("ai.reason_label", "The platform labels this as AI-generated or altered"));
+      if (watermarks.length) addReason(BLK.t("ai.reason_watermark", "AI watermark visible in the video: {tools}", { tools: watermarks.join(", ") }));
+      if (toolNames.length) addReason(BLK.t("ai.reason_tool", "Names an AI generator: {tools}", { tools: toolNames.join(", ") }));
       if (strongViewer || weakViewer) {
-        addReason("Viewers say it looks AI-made or fake (" + m + " of " + n + " comments)");
+        addReason(BLK.t("ai.reason_viewers", "Viewers say it looks AI-made or fake ({m} of {n} comments)", { m, n }));
       }
-      if (titlePhrase) addReason("Title says it is AI-made");
-      if (aiTags.length) addReason("AI hashtags: " + aiTags.slice(0, 4).join(", "));
-      if (!titlePhrase && descPhrase) addReason("Description mentions AI-made content");
+      if (titlePhrase) addReason(BLK.t("ai.reason_title", "Title says it is AI-made"));
+      if (aiTags.length) addReason(BLK.t("ai.reason_tags", "AI hashtags: {tags}", { tags: aiTags.slice(0, 4).join(", ") }));
+      if (!titlePhrase && descPhrase) addReason(BLK.t("ai.reason_desc", "Description mentions AI-made content"));
 
       return {
         level,
@@ -367,7 +367,7 @@ var BlkAI = (() => {
       if (text.includes("trainedAlgorithmicMedia") || text.includes("compositeWithTrainedAlgorithmicMedia")) {
         return {
           level: "labelled",
-          reasons: ["The file says it was made with AI (IPTC digital source type)"],
+          reasons: [BLK.t("ai.img_iptc", "The file says it was made with AI (IPTC digital source type)")],
           generator: findGenerator(text)
         };
       }
@@ -379,7 +379,7 @@ var BlkAI = (() => {
       ) {
         return {
           level: "labelled",
-          reasons: ["The file contains AI image generator settings"],
+          reasons: [BLK.t("ai.img_settings", "The file contains AI image generator settings")],
           generator: text.includes('"class_type"') ? "ComfyUI" : "Stable Diffusion"
         };
       }
@@ -391,16 +391,16 @@ var BlkAI = (() => {
       let generator = "";
 
       if (c2pa) {
-        reasons.push("Has Content Credentials (C2PA)");
+        reasons.push(BLK.t("ai.img_c2pa", "Has Content Credentials (C2PA)"));
         if (gen) {
           level = "likely";
           generator = gen;
-          reasons.push("Content Credentials name an AI generator: " + gen);
+          reasons.push(BLK.t("ai.img_c2pa_gen", "Content Credentials name an AI generator: {tool}", { tool: gen }));
         }
       } else if (gen) {
         level = "possible";
         generator = gen;
-        reasons.push("Metadata names an AI generator: " + gen);
+        reasons.push(BLK.t("ai.img_meta_gen", "Metadata names an AI generator: {tool}", { tool: gen }));
       }
 
       return { level, reasons: reasons.slice(0, 4), generator };

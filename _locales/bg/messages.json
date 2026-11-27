@@ -1,0 +1,10 @@
+{
+  "extName": {
+    "message": "NanaGuard – Блокиране на реклами, изскачащи прозорци и измами",
+    "description": "Extension name"
+  },
+  "extDescription": {
+    "message": "Блокира реклами и банери, изскачащи прозорци, спам известия, фалшиви предупреждения за вируси и други измамни трикове в браузъра.",
+    "description": "Extension description"
+  }
+}

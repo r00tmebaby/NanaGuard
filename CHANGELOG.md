@@ -2,6 +2,11 @@
 
 All notable changes to NanaGuard. Filter-list refreshes published by the weekly CI job bump the patch version and are not listed individually.
 
+## 2.9.0: In your language
+- **NanaGuard speaks 14 languages:** buttons, settings, warnings and the right-click menu in English, Bulgarian, Dutch, French, German, Greek, Italian, Polish, Portuguese, Romanian, Russian, Spanish, Turkish and Ukrainian. It follows the browser's language; pick another in the new **Settings → Language** tab.
+- **Fact checks in other languages:** choose the language answers come back in (ChatGPT replies in it, Google opens in it), and optionally a language to search sources in. With a search language, NanaGuard translates the story first, so a Bulgarian story can be checked against English fact-checkers, or the other way round. In Chrome 138+ the translation runs on your computer with Chrome's free built-in translator (the first time, Chrome asks to download a language pack); Firefox searches the text as it is.
+- **Better searches for non-English stories:** Google News opens the edition for the story's language, the fact-checker search filters claims in that language (it was always English before), and Google adds "fact check" in that language.
+
 ## 2.8.0
 - **Renamed to NanaGuard** (previously KinGuard), because several other scam-protection products for older people use the KinGuard name. Repository moved to `r00tmebaby/NanaGuard`; old links redirect. Settings, lists and statistics are kept, and old KinGuard backup files can still be imported.
 

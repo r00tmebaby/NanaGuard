@@ -67,6 +67,9 @@ On YouTube a chip under the video says *Likely AI-generated*, *AI-generated (lab
 
 **Checks facts**
 - **Check facts** in one click: right-click any text, use the buttons under YouTube videos, or open the toolbar popup. Choose **Other news sources** (is anyone else reporting it?), **Fact-checkers** (claims already reviewed by professionals), **ChatGPT** or **Google**, each opening in a new tab. Brand-new stories usually have no fact-check yet, so for news, "other sources" is the best first check.
+- **In any language:** choose the language answers come back in, and optionally a language to search sources in. NanaGuard then translates the story before searching (for example, a Bulgarian story checked against English fact-checkers). In Chrome the translation is done on your computer by Chrome's built-in translator, free and private; Firefox searches the text as it is.
+
+**Speaks your language**: buttons, settings and warnings in English, Bulgarian, Dutch, French, German, Greek, Italian, Polish, Portuguese, Romanian, Russian, Spanish, Turkish and Ukrainian. It follows your browser's language, or pick one in **Settings → Language**.
 
 **Learns as you browse**: it spots ads no list knows about (the "Ad" and "Sponsored" labels, standard banner sizes), remembers them, and blocks an ad company everywhere once it has seen it on 3 different sites.
 
@@ -121,10 +124,13 @@ On YouTube a chip under the video says *Likely AI-generated*, *AI-generated (lab
 
 ```bash
 npm run filters    # download & compile filter lists into rules/
-npm run check      # validate rules and files
-npm install && npm run test:e2e   # 69 end-to-end checks in real Chrome
+npm run check      # validate rules, files and translations
+npm run i18n       # after changing interface text: refresh src/i18n/en.json
+npm install && npm run test:e2e   # end-to-end checks in real Chrome
 npm run build      # store-ready zips in dist/
 ```
+
+- **Translations:** English is written in the code (`BLK.t("key", "English")`, `data-i18n="key"` in HTML); each language is a file in `src/i18n/` with the same keys. `npm run check` fails if a language file misses a key or breaks a `{placeholder}`. To add a language, add its code to `BLK.UI_LANGS`, create `src/i18n/<code>.json` from `en.json` and `_locales/<code>/messages.json`.
 
 - **Filter lists:** EasyList, EasyPrivacy, uBlock filters, Peter Lowe, URLhaus, phishing and cookie lists, compiled into native browser rules. Supports uBlock/ABP syntax, including scriptlets and `:has-text()`-style rules.
 - **Releases:** every version bump on `main` publishes a GitHub Release automatically. Filter lists also refresh every Monday and ship as a new release.

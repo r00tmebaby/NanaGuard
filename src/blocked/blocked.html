@@ -3,24 +3,24 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Blocked – NanaGuard</title>
+  <title data-i18n="blocked.page_title">Blocked – NanaGuard</title>
   <link rel="stylesheet" href="../ui/ui.css">
   <link rel="stylesheet" href="blocked.css">
 </head>
 <body>
   <main class="card">
     <div class="shield" id="shield" aria-hidden="true"></div>
-    <h1 id="title">This site may harm your computer</h1>
-    <p id="lead" class="lead">NanaGuard stopped you from opening a site that is known for malware or phishing (fake login and payment pages).</p>
+    <h1 id="title" data-i18n="blocked.danger_title">This site may harm your computer</h1>
+    <p id="lead" class="lead" data-i18n="blocked.danger_lead">NanaGuard stopped you from opening a site that is known for malware or phishing (fake login and payment pages).</p>
     <p class="host" id="host"></p>
     <div class="actions">
-      <button id="back" class="btn primary">Take me back to safety</button>
+      <button id="back" class="btn primary" data-i18n="blocked.back">Take me back to safety</button>
     </div>
     <details id="more">
-      <summary class="muted">Advanced</summary>
-      <p class="muted" id="advText">If you are absolutely sure this site is safe, you can open it for this browser session.</p>
-      <button id="proceed" class="btn danger">Open anyway (not recommended)</button>
-      <a id="settings" href="#" hidden>Manage blocked sites in Settings</a>
+      <summary class="muted" data-i18n="blocked.advanced">Advanced</summary>
+      <p class="muted" id="advText" data-i18n="blocked.danger_adv">If you are absolutely sure this site is safe, you can open it for this browser session.</p>
+      <button id="proceed" class="btn danger" data-i18n="blocked.proceed">Open anyway (not recommended)</button>
+      <a id="settings" href="#" hidden data-i18n="blocked.manage">Manage blocked sites in Settings</a>
     </details>
   </main>
   <script src="../common.js"></script>

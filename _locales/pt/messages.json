@@ -1,0 +1,10 @@
+{
+  "extName": {
+    "message": "NanaGuard – Bloqueador de anúncios, pop-ups e golpes",
+    "description": "Extension name"
+  },
+  "extDescription": {
+    "message": "Bloqueia anúncios e banners, pop-ups, spam de notificações, falsos avisos de vírus e outros golpes do navegador.",
+    "description": "Extension description"
+  }
+}

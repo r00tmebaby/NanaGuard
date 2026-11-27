@@ -1,0 +1,10 @@
+{
+  "extName": {
+    "message": "NanaGuard – Αποκλεισμός διαφημίσεων, popups και απατών",
+    "description": "Extension name"
+  },
+  "extDescription": {
+    "message": "Αποκλείει διαφημίσεις και banner, popups, ενοχλητικές ειδοποιήσεις, ψεύτικες προειδοποιήσεις για ιούς και άλλα κόλπα απάτης.",
+    "description": "Extension description"
+  }
+}

@@ -5,6 +5,7 @@ import { readFile, readdir, stat } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import { validate as validateI18n } from "./i18n.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const errors = [];
@@ -62,6 +63,9 @@ const refs = [
   "src/ocr/ocr.js",
   "src/lens/lens.html",
   "src/lens/lens.js",
+  "src/check/check.html",
+  "src/check/check.js",
+  "src/i18n/en.json",
   "src/vendor/tesseract/tesseract.min.js",
   "src/vendor/tesseract/worker.min.js",
   "src/vendor/tesseract/tesseract-core-simd-lstm.wasm.js",
@@ -127,6 +131,9 @@ for (const { id, path: p } of manifest.declarative_net_request.rule_resources) {
   }
 }
 if (total > 30000) console.warn(`note: ${total} static rules exceed Chrome's guaranteed 30,000 (rest uses the shared pool)`);
+
+// 4. Interface translations: every language file complete, placeholders intact, English reference current.
+for (const e of await validateI18n(ROOT)) fail(`i18n: ${e}`);
 
 if (errors.length) {
   console.error(errors.slice(0, 50).join("\n"));

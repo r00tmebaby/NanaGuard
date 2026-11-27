@@ -1,0 +1,10 @@
+{
+  "extName": {
+    "message": "NanaGuard – Blokkeert advertenties, popups en oplichting",
+    "description": "Extension name"
+  },
+  "extDescription": {
+    "message": "Blokkeert advertenties en banners, popups, meldingsspam, valse virusmeldingen en andere oplichtingstrucs in uw browser.",
+    "description": "Extension description"
+  }
+}

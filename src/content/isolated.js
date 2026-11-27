@@ -31,24 +31,24 @@
   // iframe: route through the background so the top frame shows them.
   document.addEventListener("nanaguard:warn", (e) => message({ cmd: "warn", kind: String(e.detail) }));
 
-  const WARNINGS = {
+  const warnings = () => ({
     clickfix: {
       id: "clickfix",
       level: "high",
-      title: "Stop! Don't paste anything",
+      title: BLK.t("isolated.clickfix_title", "Stop! Don't paste anything"),
       lines: [
-        "This page secretly tried to copy a dangerous command. It wants you to press Windows + R (or open Terminal) and paste it. That would install a virus.",
-        "Real websites never ask you to do this. NanaGuard replaced the command with a harmless message.",
+        BLK.t("isolated.clickfix_line1", "This page secretly tried to copy a dangerous command. It wants you to press Windows + R (or open Terminal) and paste it. That would install a virus."),
+        BLK.t("isolated.clickfix_line2", "Real websites never ask you to do this. NanaGuard replaced the command with a harmless message."),
       ],
       actions: [
-        { label: "Close this page", kind: "primary", run: () => message({ cmd: "closeTab" }) },
-        { label: "OK, I won't paste anything", kind: "secondary" },
+        { label: BLK.t("isolated.close_page", "Close this page"), kind: "primary", run: () => message({ cmd: "closeTab" }) },
+        { label: BLK.t("isolated.clickfix_ok", "OK, I won't paste anything"), kind: "secondary" },
       ],
     },
-  };
+  });
   if (isTop) {
     api.runtime.onMessage.addListener((msg) => {
-      if (msg && msg.cmd === "showWarning" && WARNINGS[msg.kind]) BlkWarn.show(WARNINGS[msg.kind]);
+      if (msg && msg.cmd === "showWarning" && Object.hasOwn(warnings(), msg.kind)) BlkWarn.show(warnings()[msg.kind]);
       if (msg && msg.cmd === "showInfo") {
         try {
           const title = msg.title;
@@ -62,7 +62,7 @@
             level,
             title,
             lines,
-            actions: [{ label: "OK", kind: "primary" }],
+            actions: [{ label: BLK.t("isolated.ok", "OK"), kind: "primary" }],
           });
         } catch {
           // never throw out of the message handler
@@ -71,7 +71,8 @@
     });
   }
 
-  BLK.getSettings().then(async (settings) => {
+  // Warnings only show in the top frame, so only it needs the translation.
+  Promise.all([BLK.getSettings(), isTop ? BLK.loadI18n() : null]).then(async ([settings]) => {
     active = settings.enabled && !!host && !BLK.isAllowlisted(host, settings.allowlist);
     queued.splice(0).forEach((k) => active && send(k));
     if (!active || !isTop) return;

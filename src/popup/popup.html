@@ -12,49 +12,49 @@
       <img src="../../icons/icon-32.png" width="24" height="24" alt="">
       <h1>NanaGuard</h1>
     </div>
-    <label class="switch" title="Protection on/off everywhere">
-      <input type="checkbox" id="global" aria-label="Protection everywhere">
+    <label class="switch" title="Protection on/off everywhere" data-i18n-title="popup.protection_everywhere_title">
+      <input type="checkbox" id="global" aria-label="Protection everywhere" data-i18n-aria-label="popup.protection_everywhere">
       <span></span>
     </label>
   </header>
 
   <div id="perm" class="banner" hidden>
-    <span>NanaGuard needs access to websites to protect them.</span>
-    <button id="grant" class="btn primary">Allow</button>
+    <span data-i18n="popup.perm_needed">NanaGuard needs access to websites to protect them.</span>
+    <button id="grant" class="btn primary" data-i18n="popup.allow">Allow</button>
   </div>
 
   <div id="updateBanner" class="banner update" hidden>
-    <span>NanaGuard <b id="updateVersion"></b> is available.</span>
-    <button id="updateBtn" class="btn primary">Get it</button>
+    <span id="updateText">NanaGuard is available.</span>
+    <button id="updateBtn" class="btn primary" data-i18n="popup.get_it">Get it</button>
   </div>
 
   <section class="card">
     <div class="row">
       <div class="site">
-        <div class="muted small">This site</div>
+        <div class="muted small" data-i18n="popup.this_site">This site</div>
         <div id="host" class="host">—</div>
       </div>
-      <label class="switch" title="Protection on this site">
-        <input type="checkbox" id="siteToggle" aria-label="Protection on this site">
+      <label class="switch" title="Protection on this site" data-i18n-title="popup.protection_site">
+        <input type="checkbox" id="siteToggle" aria-label="Protection on this site" data-i18n-aria-label="popup.protection_site">
         <span></span>
       </label>
     </div>
     <p id="siteStatus" class="status"></p>
     <div class="actions">
-      <button id="pick" class="btn primary">Hide an ad on this page</button>
-      <button id="blockSite" class="btn danger" title="Never open this website again">Block site</button>
+      <button id="pick" class="btn primary" data-i18n="popup.hide_ad">Hide an ad on this page</button>
+      <button id="blockSite" class="btn danger" title="Never open this website again" data-i18n-title="popup.block_site_title" data-i18n="popup.block_site">Block site</button>
     </div>
   </section>
 
-  <section class="counts" aria-label="Blocked on this page">
-    <div class="card count"><strong id="adsCount">–</strong><span class="muted">ads &amp; trackers blocked</span></div>
-    <div class="card count"><strong id="hiddenCount">–</strong><span class="muted">banners hidden</span></div>
-    <div class="card count"><strong id="tabCount">0</strong><span class="muted">tricks stopped</span></div>
+  <section class="counts" aria-label="Blocked on this page" data-i18n-aria-label="popup.counts_label">
+    <div class="card count"><strong id="adsCount">–</strong><span class="muted" data-i18n="popup.ads_blocked">ads &amp; trackers blocked</span></div>
+    <div class="card count"><strong id="hiddenCount">–</strong><span class="muted" data-i18n="popup.banners_hidden">banners hidden</span></div>
+    <div class="card count"><strong id="tabCount">0</strong><span class="muted" data-i18n="popup.tricks_stopped">tricks stopped</span></div>
   </section>
 
   <div id="smartRow" class="card smart row" hidden>
     <span><b id="smartCount">0</b> ads spotted automatically on this page</span>
-    <button id="smartUndo" class="btn small-btn" title="Stop smart detection on this site and forget what it learned here">Undo</button>
+    <button id="smartUndo" class="btn small-btn" title="Stop smart detection on this site and forget what it learned here" data-i18n-title="popup.undo_title" data-i18n="popup.undo">Undo</button>
   </div>
 
   <details>
@@ -62,18 +62,18 @@
     <ul id="breakdown" class="breakdown"></ul>
   </details>
 
-  <section id="aiCard" class="card ai-card" hidden><div class="label" id="aiTitle"></div><ul id="aiReasons" class="ai-reasons"></ul><p id="aiChecking" class="muted small" hidden>Checking the video for AI watermarks...</p><p class="muted small">Based on the page's labels, wording, comments and any AI watermark text read from the video, all on your device. It cannot prove a video is real or fake.</p></section>
+  <section id="aiCard" class="card ai-card" hidden><div class="label" id="aiTitle"></div><ul id="aiReasons" class="ai-reasons"></ul><p id="aiChecking" class="muted small" hidden data-i18n="popup.ai_watermark_checking">Checking the video for AI watermarks...</p><p class="muted small" data-i18n="popup.ai_disclaimer">Based on the page's labels, wording, comments and any AI watermark text read from the video, all on your device. It cannot prove a video is real or fake.</p></section>
 
-  <button id="lensBtn" class="btn" hidden>Find where this video came from</button>
+  <button id="lensBtn" class="btn" hidden data-i18n="popup.lens">Find where this video came from</button>
 
   <section id="checkCard" class="card check" hidden>
-    <div class="label">Is this true?</div>
+    <div class="label" data-i18n="popup.is_this_true">Is this true?</div>
     <p id="checkText" class="check-text"></p>
     <div class="check-btns" id="checkBtns"></div>
   </section>
 
   <footer class="row">
-    <a href="#" id="openOptions">Settings</a>
+    <a href="#" id="openOptions" data-i18n="popup.settings">Settings</a>
     <span id="version" class="muted small"></span>
   </footer>
 

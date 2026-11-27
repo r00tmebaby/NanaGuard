@@ -235,14 +235,14 @@ var BlkGuard = (() => {
     warn({
       id: "phishing",
       level,
-      title: level === "high" ? `This is not the real ${brandName} website` : `Careful: this website is not ${brandName}`,
+      title: level === "high" ? BLK.t("guard.fake_site_title", "This is not the real {brand} website", { brand: brandName }) : BLK.t("guard.fake_site_title_careful", "Careful: this website is not {brand}", { brand: brandName }),
       lines: level === "high"
-        ? [`You are on:`, { site: host }, `The real ${brandName} website is ${official}. Fake websites like this one steal passwords and card details. Please don't type anything here.`]
-        : [`You are on ${host}. The real ${brandName} website is ${official}.`],
+        ? [BLK.t("guard.you_are_on", "You are on:"), { site: host }, BLK.t("guard.fake_site_body", "The real {brand} website is {official}. Fake websites like this one steal passwords and card details. Please don't type anything here.", { brand: brandName, official })]
+        : [BLK.t("guard.fake_site_short", "You are on {host}. The real {brand} website is {official}.", { host, brand: brandName, official })],
       actions: [
-        { label: `Go to the real ${brandName}`, kind: "primary", run: () => { location.href = `https://www.${official.replace(/^www\./, "")}/`; } },
-        { label: "Leave this website", kind: "secondary", run: () => message({ cmd: "closeTab" }) },
-        { label: "I'm sure this website is safe", kind: "link", run: () => BLK.trustSite(host) },
+        { label: BLK.t("guard.go_to_real", "Go to the real {brand}", { brand: brandName }), kind: "primary", run: () => { location.href = `https://www.${official.replace(/^www\./, "")}/`; } },
+        { label: BLK.t("guard.leave_site", "Leave this website"), kind: "secondary", run: () => message({ cmd: "closeTab" }) },
+        { label: BLK.t("guard.sure_safe", "I'm sure this website is safe"), kind: "link", run: () => BLK.trustSite(host) },
       ],
     });
     return true;
@@ -343,12 +343,12 @@ var BlkGuard = (() => {
       warn({
         id: "password",
         level: "high",
-        title: `You just typed your ${name} password on a different website`,
-        lines: [`This website is:`, { site: host }, `It is not ${name}. If a message or call sent you here, it may be a fake page trying to steal your password. To be safe, change your ${name} password at ${info.site}.`],
+        title: BLK.t("guard.pw_reuse_title", "You just typed your {name} password on a different website", { name }),
+        lines: [BLK.t("guard.pw_reuse_site_is", "This website is:"), { site: host }, BLK.t("guard.pw_reuse_body", "It is not {name}. If a message or call sent you here, it may be a fake page trying to steal your password. To be safe, change your {name} password at {site}.", { name, site: info.site })],
         actions: [
-          { label: "Clear what I typed", kind: "primary", run: () => { input.value = ""; input.dispatchEvent(new Event("input", { bubbles: true })); } },
-          { label: "Leave this website", kind: "secondary", run: () => ctx.message({ cmd: "closeTab" }) },
-          { label: "This website is safe", kind: "link", run: () => BLK.trustSite(host) },
+          { label: BLK.t("guard.pw_clear", "Clear what I typed"), kind: "primary", run: () => { input.value = ""; input.dispatchEvent(new Event("input", { bubbles: true })); } },
+          { label: BLK.t("guard.leave_site", "Leave this website"), kind: "secondary", run: () => ctx.message({ cmd: "closeTab" }) },
+          { label: BLK.t("guard.pw_site_safe", "This website is safe"), kind: "link", run: () => BLK.trustSite(host) },
         ],
       });
     };
@@ -372,16 +372,12 @@ var BlkGuard = (() => {
   const SCAMS = [
     {
       id: "remote",
-      title: "Never let a stranger connect to your computer",
-      body: "This page asks you to install a remote-access app (like AnyDesk or TeamViewer). Scammers use these apps to take over computers and bank accounts. Real companies don't ask for this out of the blue.",
       needs: /\b(any ?desk|team ?viewer|ultra ?viewer|screen ?connect|connectwise|logmein|rust ?desk|supremo|quick ?support|zoho assist|splashtop|ammyy|getscreen)\b/i,
       plus: [/\b(download|install|run|open)\b/i, /\b(technician|agent|refund|help ?desk|customer (care|service)|session (id|code)|connection code|access code)\b/i, /\b(call|phone|toll[- ]?free|support team)\b/i],
       official: ["anydesk.com", "teamviewer.com", "ultraviewer.net", "screenconnect.com", "connectwise.com", "logmein.com", "rustdesk.com", "supremocontrol.com", "zoho.com", "splashtop.com", "getscreen.me"],
     },
     {
       id: "giftcard",
-      title: "No real company or government asks to be paid in gift cards",
-      body: "This page asks for payment with gift cards. That is always a scam: once you share the card numbers, the money is gone for good.",
       needs: /\bgift ?cards?\b/i,
       plus: [/\b(pay|payment|fee|fine|bill|tax(es)?|refund|bail|settle|clear)\b.{0,50}\bgift ?cards?\b|\bgift ?cards?\b.{0,50}\b(pay|payment|fee|fine|tax|settle)\b/i,
         /\b(scratch|send|share|read|give|tell)\b.{0,40}\b(code|pin|numbers?|card number|back of the card)\b/i,
@@ -389,8 +385,6 @@ var BlkGuard = (() => {
     },
     {
       id: "crypto",
-      title: "Be careful: this page asks you to send cryptocurrency",
-      body: "Asking for Bitcoin or crypto payments, 'doubling' your coins, or paying a fee to unlock money are classic scams. Crypto payments can't be reversed.",
       needs: /\b(bitcoin|btc|crypto(currency)?|usdt|tether|ethereum|eth)\b/i,
       plus: [/\b(bitcoin|crypto) (atm|machine)\b/i, /\bsend\b.{0,30}\b(btc|bitcoin|usdt|eth|crypto)\b.{0,40}\b(to|address)\b/i,
         /\b(double|2x|triple|multiply)\b.{0,25}\b(your )?(btc|bitcoin|eth|crypto|coins|money|investment)\b/i,
@@ -398,8 +392,6 @@ var BlkGuard = (() => {
     },
     {
       id: "support",
-      title: "This looks like a fake tech-support page",
-      body: "Microsoft, Apple and your bank never show warnings with a phone number to call. Don't call the number and don't let anyone connect to your computer.",
       needs: PHONE,
       plus: [/\b(support|helpline|technician|toll[- ]?free|call (now|immediately|us|this number))\b/i,
         /\b(virus|infected|malware|suspended|locked|unauthori[sz]ed|hacked|compromised|security alert|error code)\b/i,
@@ -408,14 +400,35 @@ var BlkGuard = (() => {
     },
     {
       id: "refund",
-      title: "This looks like a refund scam",
-      body: "Scammers pretend they 'refunded too much' and ask you to send the difference back, often by gift card, wire or crypto. Real companies fix refunds themselves.",
       needs: /\b(refund|over ?pa(id|yment)|excess (amount|refund))\b/i,
       plus: [/\b(over[- ]?refund(ed)?|refunded too much|sent (you )?too much|extra (money|amount)|wrong amount)\b/i,
         /\b(return|send back|pay back|transfer back)\b.{0,40}\b(difference|extra|excess|amount)\b/i, /\b(any ?desk|team ?viewer|gift ?card|bitcoin|wire)\b/i],
     },
   ];
-  const SAFE_HOSTS = /(\.gov|\.gov\.uk|\.gov\.au|\.gc\.ca|\.edu|(^|\.)wikipedia\.org|(^|\.)bbb\.org|ftc\.gov|actionfraud\.police\.uk|(^|\.)ageuk\.org\.uk|(^|\.)aarp\.org)$/;
+  // Warning texts per scam id; a function so the translation is read when the warning is shown.
+  const scamTexts = () => ({
+    remote: {
+      title: BLK.t("guard.scam_remote_title", "Never let a stranger connect to your computer"),
+      body: BLK.t("guard.scam_remote_body", "This page asks you to install a remote-access app (like AnyDesk or TeamViewer). Scammers use these apps to take over computers and bank accounts. Real companies don't ask for this out of the blue."),
+    },
+    giftcard: {
+      title: BLK.t("guard.scam_giftcard_title", "No real company or government asks to be paid in gift cards"),
+      body: BLK.t("guard.scam_giftcard_body", "This page asks for payment with gift cards. That is always a scam: once you share the card numbers, the money is gone for good."),
+    },
+    crypto: {
+      title: BLK.t("guard.scam_crypto_title", "Be careful: this page asks you to send cryptocurrency"),
+      body: BLK.t("guard.scam_crypto_body", "Asking for Bitcoin or crypto payments, 'doubling' your coins, or paying a fee to unlock money are classic scams. Crypto payments can't be reversed."),
+    },
+    support: {
+      title: BLK.t("guard.scam_support_title", "This looks like a fake tech-support page"),
+      body: BLK.t("guard.scam_support_body", "Microsoft, Apple and your bank never show warnings with a phone number to call. Don't call the number and don't let anyone connect to your computer."),
+    },
+    refund: {
+      title: BLK.t("guard.scam_refund_title", "This looks like a refund scam"),
+      body: BLK.t("guard.scam_refund_body", "Scammers pretend they 'refunded too much' and ask you to send the difference back, often by gift card, wire or crypto. Real companies fix refunds themselves."),
+    },
+  });
+  const SAFE_HOSTS =/(\.gov|\.gov\.uk|\.gov\.au|\.gc\.ca|\.edu|(^|\.)wikipedia\.org|(^|\.)bbb\.org|ftc\.gov|actionfraud\.police\.uk|(^|\.)ageuk\.org\.uk|(^|\.)aarp\.org)$/;
 
   function checkScams(ctx) {
     const { host, warn, send } = ctx;
@@ -438,12 +451,12 @@ var BlkGuard = (() => {
       warn({
         id: "scam-" + scam.id,
         level: "medium",
-        title: scam.title,
-        lines: [scam.body],
+        title: scamTexts()[scam.id].title,
+        lines: [scamTexts()[scam.id].body],
         actions: [
-          { label: "Leave this website", kind: "primary", run: () => ctx.message({ cmd: "closeTab" }) },
-          { label: "Dismiss", kind: "secondary" },
-          { label: "Don't warn on this site", kind: "link", run: () => BLK.trustSite(host) },
+          { label: BLK.t("guard.leave_site", "Leave this website"), kind: "primary", run: () => ctx.message({ cmd: "closeTab" }) },
+          { label: BLK.t("guard.dismiss", "Dismiss"), kind: "secondary" },
+          { label: BLK.t("guard.dont_warn_site", "Don't warn on this site"), kind: "link", run: () => BLK.trustSite(host) },
         ],
       });
       return; // one scam banner per page is enough

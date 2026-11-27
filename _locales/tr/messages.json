@@ -1,0 +1,10 @@
+{
+  "extName": {
+    "message": "NanaGuard – Reklam, Açılır Pencere ve Dolandırıcılık Engelleyici",
+    "description": "Extension name"
+  },
+  "extDescription": {
+    "message": "Reklamları, afişleri, açılır pencereleri, bildirim spam'ini, sahte virüs uyarılarını ve tarayıcı dolandırıcılıklarını engeller.",
+    "description": "Extension description"
+  }
+}

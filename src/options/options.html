@@ -13,21 +13,22 @@
       <img src="../../icons/icon-48.png" width="40" height="40" alt="">
       <div>
         <h1>NanaGuard</h1>
-        <p class="muted">Ad, popup &amp; scam blocker</p>
+        <p class="muted" data-i18n="options.tagline">Ad, popup &amp; scam blocker</p>
       </div>
     </header>
 
     <div id="perm" class="banner" hidden>
-      <span><b>One more step:</b> allow NanaGuard to run on websites, otherwise it can't block anything.</span>
-      <button id="grant" class="btn primary">Allow access</button>
+      <span data-i18n="options.perm_needed"><b>One more step:</b> allow NanaGuard to run on websites, otherwise it can't block anything.</span>
+      <button id="grant" class="btn primary" data-i18n="options.allow_access">Allow access</button>
     </div>
 
     <nav class="tabs" role="tablist">
-      <button role="tab" data-tab="protection" aria-selected="true">Protection</button>
-      <button role="tab" data-tab="ads">Filters</button>
-      <button role="tab" data-tab="smart">Smart</button>
-      <button role="tab" data-tab="sites">Sites</button>
-      <button role="tab" data-tab="stats">Statistics</button>
+      <button role="tab" data-tab="protection" aria-selected="true" data-i18n="options.tab_protection">Protection</button>
+      <button role="tab" data-tab="ads" data-i18n="options.tab_filters">Filters</button>
+      <button role="tab" data-tab="smart" data-i18n="options.tab_smart">Smart</button>
+      <button role="tab" data-tab="sites" data-i18n="options.tab_sites">Sites</button>
+      <button role="tab" data-tab="stats" data-i18n="options.tab_stats">Statistics</button>
+      <button role="tab" data-tab="language" data-i18n="options.tab_language">Language</button>
     </nav>
 
     <!-- Protection -->
@@ -35,24 +36,24 @@
       <div class="card">
         <div class="row">
           <div>
-            <h2>Protection</h2>
-            <p class="muted">Turn NanaGuard on or off everywhere.</p>
+            <h2 data-i18n="options.protection_title">Protection</h2>
+            <p class="muted" data-i18n="options.protection_desc">Turn NanaGuard on or off everywhere.</p>
           </div>
-          <label class="switch"><input type="checkbox" id="global" aria-label="Protection"><span></span></label>
+          <label class="switch"><input type="checkbox" id="global" aria-label="Protection" data-i18n-aria-label="options.protection_title"><span></span></label>
         </div>
         <ul class="features muted">
-          <li>Popups and popunders that open without a real click</li>
-          <li>"Click Allow" notification and push-message prompts</li>
-          <li>Endless alert/confirm/print loops and back-button traps</li>
-          <li>Fullscreen and keyboard-lock hijacks used by fake support scams</li>
-          <li>Full-page fake "your computer is infected" screens</li>
-          <li>Known popunder ad networks, blocked at network level</li>
+          <li data-i18n="options.feature_popups">Popups and popunders that open without a real click</li>
+          <li data-i18n="options.feature_push">"Click Allow" notification and push-message prompts</li>
+          <li data-i18n="options.feature_loops">Endless alert/confirm/print loops and back-button traps</li>
+          <li data-i18n="options.feature_fullscreen">Fullscreen and keyboard-lock hijacks used by fake support scams</li>
+          <li data-i18n="options.feature_fake_screens">Full-page fake "your computer is infected" screens</li>
+          <li data-i18n="options.feature_networks">Known popunder ad networks, blocked at network level</li>
         </ul>
       </div>
 
       <div class="card">
-        <h2>Scam &amp; fraud protection</h2>
-        <p class="muted">Plain-language warnings at the moment something looks dangerous. Every warning has a "this site is safe" option.</p>
+        <h2 data-i18n="options.scam_title">Scam &amp; fraud protection</h2>
+        <p class="muted" data-i18n="options.scam_desc">Plain-language warnings at the moment something looks dangerous. Every warning has a "this site is safe" option.</p>
         <div id="guards" class="lists"></div>
       </div>
     </section>
@@ -60,17 +61,17 @@
     <!-- Ads -->
     <section class="panel" data-panel="ads" hidden>
       <div class="card">
-        <h2>Filter lists</h2>
-        <p class="muted">Community-maintained lists, compiled into fast browser rules and refreshed every week with each NanaGuard release.</p>
+        <h2 data-i18n="options.filters_title">Filter lists</h2>
+        <p class="muted" data-i18n="options.filters_desc">Community-maintained lists, compiled into fast browser rules and refreshed every week with each NanaGuard release.</p>
         <div id="lists" class="lists"></div>
         <p class="muted small" id="listsUpdated"></p>
       </div>
 
       <div class="card">
-        <h2>Hidden elements</h2>
-        <p class="muted">Things you hid with <b>Hide an ad on this page</b>. Remove one to bring it back.</p>
+        <h2 data-i18n="options.hidden_title">Hidden elements</h2>
+        <p class="muted" data-i18n="options.hidden_desc">Things you hid with <b>Hide an ad on this page</b>. Remove one to bring it back.</p>
         <div id="hidden" class="groups"></div>
-        <p id="hiddenEmpty" class="muted">Nothing hidden yet. Open a page, click the NanaGuard icon, then <b>Hide an ad on this page</b>.</p>
+        <p id="hiddenEmpty" class="muted" data-i18n="options.hidden_empty">Nothing hidden yet. Open a page, click the NanaGuard icon, then <b>Hide an ad on this page</b>.</p>
       </div>
     </section>
 
@@ -79,32 +80,32 @@
       <div class="card">
         <div class="row">
           <div>
-            <h2>Smart ad detection</h2>
-            <p class="muted">Spots ads no list knows about, the way a person would: "Ad" and "Sponsored" labels, AdChoices icons, standard banner sizes, and boxes served by other companies. It learns as you browse.</p>
+            <h2 data-i18n="options.smart_title">Smart ad detection</h2>
+            <p class="muted" data-i18n="options.smart_desc">Spots ads no list knows about, the way a person would: "Ad" and "Sponsored" labels, AdChoices icons, standard banner sizes, and boxes served by other companies. It learns as you browse.</p>
           </div>
-          <label class="switch"><input type="checkbox" id="smart" aria-label="Smart ad detection"><span></span></label>
+          <label class="switch"><input type="checkbox" id="smart" aria-label="Smart ad detection" data-i18n-aria-label="options.smart_title"><span></span></label>
         </div>
         <ul class="features muted">
-          <li>Ads it finds on a site are remembered and hidden instantly on your next visit.</li>
-          <li>When the same ad company shows up on <b>3 different sites</b>, it is blocked everywhere.</li>
-          <li>Everything is learned and stored only on this computer.</li>
+          <li data-i18n="options.smart_feature_remember">Ads it finds on a site are remembered and hidden instantly on your next visit.</li>
+          <li data-i18n="options.smart_feature_three">When the same ad company shows up on <b>3 different sites</b>, it is blocked everywhere.</li>
+          <li data-i18n="options.smart_feature_local">Everything is learned and stored only on this computer.</li>
         </ul>
       </div>
 
       <div class="card">
-        <h2>Learned ad networks</h2>
-        <p class="muted">Companies NanaGuard has seen serving ads. Blocked ones are stopped on every site.</p>
+        <h2 data-i18n="options.networks_title">Learned ad networks</h2>
+        <p class="muted" data-i18n="options.networks_desc">Companies NanaGuard has seen serving ads. Blocked ones are stopped on every site.</p>
         <ul id="networks" class="chips"></ul>
-        <p id="networksEmpty" class="muted">Nothing learned yet. Browse normally and this list fills up on its own.</p>
+        <p id="networksEmpty" class="muted" data-i18n="options.networks_empty">Nothing learned yet. Browse normally and this list fills up on its own.</p>
       </div>
 
       <div class="card">
         <div class="row">
           <div>
-            <h2>Learned on sites</h2>
-            <p class="muted"><span id="learnedSitesCount">0 sites</span> with remembered ads. <span id="smartOffInfo"></span></p>
+            <h2 data-i18n="options.learned_sites_title">Learned on sites</h2>
+            <p class="muted"><span id="learnedSitesCount">0 sites with remembered ads.</span> <span id="smartOffInfo"></span></p>
           </div>
-          <button id="forget" class="btn danger">Forget all</button>
+          <button id="forget" class="btn danger" data-i18n="options.forget_all">Forget all</button>
         </div>
         <ul id="smartOff" class="chips"></ul>
       </div>
@@ -113,34 +114,34 @@
     <!-- Sites -->
     <section class="panel" data-panel="sites" hidden>
       <div class="card">
-        <h2>Blocked sites</h2>
-        <p class="muted">These websites, and every page or ad loaded from them, are blocked completely.</p>
+        <h2 data-i18n="options.blocked_title">Blocked sites</h2>
+        <p class="muted" data-i18n="options.blocked_desc">These websites, and every page or ad loaded from them, are blocked completely.</p>
         <form id="blockForm" class="add">
-          <input id="blockDomain" type="text" placeholder="annoying-site.com" autocomplete="off" spellcheck="false" aria-label="Site to block">
-          <button class="btn primary" type="submit">Block</button>
+          <input id="blockDomain" type="text" placeholder="annoying-site.com" autocomplete="off" spellcheck="false" aria-label="Site to block" data-i18n-aria-label="options.block_input_label">
+          <button class="btn primary" type="submit" data-i18n="options.block">Block</button>
         </form>
         <p id="blockError" class="error" role="alert"></p>
         <ul id="blocklist" class="chips"></ul>
-        <p id="blockEmpty" class="muted">No sites blocked.</p>
+        <p id="blockEmpty" class="muted" data-i18n="options.block_empty">No sites blocked.</p>
       </div>
 
       <div class="card">
-        <h2>Allowed sites</h2>
-        <p class="muted">NanaGuard stays off on these sites. Add a site only if it stops working properly, for example a bank's payment window.</p>
+        <h2 data-i18n="options.allowed_title">Allowed sites</h2>
+        <p class="muted" data-i18n="options.allowed_desc">NanaGuard stays off on these sites. Add a site only if it stops working properly, for example a bank's payment window.</p>
         <form id="allowForm" class="add">
-          <input id="allowDomain" type="text" placeholder="mybank.com" autocomplete="off" spellcheck="false" aria-label="Site to allow">
-          <button class="btn primary" type="submit">Allow</button>
+          <input id="allowDomain" type="text" placeholder="mybank.com" autocomplete="off" spellcheck="false" aria-label="Site to allow" data-i18n-aria-label="options.allow_input_label">
+          <button class="btn primary" type="submit" data-i18n="options.allow">Allow</button>
         </form>
         <p id="allowError" class="error" role="alert"></p>
         <ul id="allowlist" class="chips"></ul>
-        <p id="allowEmpty" class="muted">No sites allowed.</p>
+        <p id="allowEmpty" class="muted" data-i18n="options.allow_empty">No sites allowed.</p>
       </div>
 
       <div class="card">
-        <h2>Trusted sites</h2>
-        <p class="muted">Sites you marked "safe" in a warning. NanaGuard still blocks ads there but won't show scam or fake-site warnings.</p>
+        <h2 data-i18n="options.trusted_title">Trusted sites</h2>
+        <p class="muted" data-i18n="options.trusted_desc">Sites you marked "safe" in a warning. NanaGuard still blocks ads there but won't show scam or fake-site warnings.</p>
         <ul id="trusted" class="chips"></ul>
-        <p id="trustedEmpty" class="muted">No trusted sites.</p>
+        <p id="trustedEmpty" class="muted" data-i18n="options.trusted_empty">No trusted sites.</p>
       </div>
     </section>
 
@@ -149,48 +150,78 @@
       <div class="card">
         <div class="row">
           <div>
-            <h2>Statistics</h2>
-            <p class="muted">Counts are stored only on this computer.</p>
+            <h2 data-i18n="options.stats_title">Statistics</h2>
+            <p class="muted" data-i18n="options.stats_desc">Counts are stored only on this computer.</p>
           </div>
-          <button id="reset" class="btn danger">Reset</button>
+          <button id="reset" class="btn danger" data-i18n="options.reset">Reset</button>
         </div>
         <ul id="stats" class="statlist"></ul>
       </div>
       <div class="card">
         <div class="row">
           <div>
-            <h2>Backup</h2>
-            <p class="muted">Save your blocked, allowed and hidden lists, or load them on another computer.</p>
+            <h2 data-i18n="options.backup_title">Backup</h2>
+            <p class="muted" data-i18n="options.backup_desc">Save your blocked, allowed and hidden lists, or load them on another computer.</p>
           </div>
           <div class="btns">
-            <button id="export" class="btn">Export</button>
-            <label class="btn">Import<input id="import" type="file" accept="application/json" hidden></label>
+            <button id="export" class="btn" data-i18n="options.export">Export</button>
+            <label class="btn"><span data-i18n="options.import">Import</span><input id="import" type="file" accept="application/json" hidden></label>
           </div>
         </div>
         <p id="backupMsg" class="muted"></p>
       </div>
     </section>
 
+    <!-- Language -->
+    <section class="panel" data-panel="language" hidden>
+      <div class="card">
+        <h2 data-i18n="options.lang_title">Language</h2>
+        <p class="muted" data-i18n="options.lang_desc">The language of NanaGuard's buttons, settings and warnings.</p>
+        <div class="list-row">
+          <label for="uiLang"><b data-i18n="options.lang_ui">NanaGuard's language</b></label>
+          <select id="uiLang" class="select"></select>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 data-i18n="options.fact_lang_title">Check facts</h2>
+        <p class="muted" data-i18n="options.fact_lang_desc">Choose the language of the answers, and the language to look for sources in.</p>
+        <div class="lists">
+          <div class="list-row">
+            <label for="factLang"><b data-i18n="options.fact_answer">Answer in</b>
+              <span class="muted small" data-i18n="options.fact_answer_desc">ChatGPT replies in this language and Google opens in it.</span></label>
+            <select id="factLang" class="select"></select>
+          </div>
+          <div class="list-row">
+            <label for="factSearchLang"><b data-i18n="options.fact_search">Search sources in</b>
+              <span class="muted small" data-i18n="options.fact_search_desc">Pick a language to translate the text into before searching Google, News and fact-checkers. For example, find English fact-checks of a Bulgarian story.</span></label>
+            <select id="factSearchLang" class="select"></select>
+          </div>
+        </div>
+        <p class="muted small" id="translateNote" data-i18n="options.fact_translate_note">In Chrome the text is translated on your computer by Chrome's built-in translator. The first time, Chrome asks to download a free language pack. In Firefox the text is searched as it is.</p>
+      </div>
+    </section>
+
     <section class="card" id="updateCard">
       <div class="row">
         <div>
-          <h2>Updates</h2>
+          <h2 data-i18n="options.updates_title">Updates</h2>
           <p class="muted" id="updateStatus">Checking for a new version…</p>
         </div>
-        <button id="checkUpdate" class="btn">Check now</button>
+        <button id="checkUpdate" class="btn" data-i18n="options.check_now">Check now</button>
       </div>
       <div id="updateHow" hidden>
-        <p><b>How to update</b> (you installed NanaGuard yourself, so it can't update on its own):</p>
+        <p data-i18n="options.update_how"><b>How to update</b> (you installed NanaGuard yourself, so it can't update on its own):</p>
         <ol class="muted">
-          <li>Download the new zip: <a id="dlChrome" href="#" target="_blank" rel="noopener">Chrome / Edge</a> · <a id="dlFirefox" href="#" target="_blank" rel="noopener">Firefox</a> · <a id="dlPage" href="#" target="_blank" rel="noopener">release notes</a></li>
-          <li>Unzip it <b>into the same folder</b> as before, replacing the old files. Your settings are kept.</li>
-          <li>Open <code>chrome://extensions</code> and click the reload button on NanaGuard.</li>
+          <li><span data-i18n="options.update_download">Download the new zip:</span> <a id="dlChrome" href="#" target="_blank" rel="noopener" data-i18n="options.update_chrome">Chrome / Edge</a> · <a id="dlFirefox" href="#" target="_blank" rel="noopener" data-i18n="options.update_firefox">Firefox</a> · <a id="dlPage" href="#" target="_blank" rel="noopener" data-i18n="options.update_notes">release notes</a></li>
+          <li data-i18n="options.update_unzip">Unzip it <b>into the same folder</b> as before, replacing the old files. Your settings are kept.</li>
+          <li id="updateReload">Open <code>chrome://extensions</code> and click the reload button on NanaGuard.</li>
         </ol>
       </div>
     </section>
 
     <footer class="muted">
-      <span id="version"></span> · Made by <a href="https://github.com/r00tmebaby" target="_blank" rel="noopener">r00tmebaby</a> · No data leaves your browser.
+      <span id="version"></span> · <span data-i18n="options.made_by">Made by</span> <a href="https://github.com/r00tmebaby" target="_blank" rel="noopener">r00tmebaby</a> · <span data-i18n="options.no_data_leaves">No data leaves your browser.</span>
     </footer>
   </main>
   <script src="../common.js"></script>

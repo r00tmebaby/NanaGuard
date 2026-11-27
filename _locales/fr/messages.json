@@ -1,0 +1,10 @@
+{
+  "extName": {
+    "message": "NanaGuard – Bloqueur de pubs, popups et arnaques",
+    "description": "Extension name"
+  },
+  "extDescription": {
+    "message": "Bloque pubs, bannières, popups, spam de notifications, faux avertissements de virus et autres arnaques du navigateur.",
+    "description": "Extension description"
+  }
+}

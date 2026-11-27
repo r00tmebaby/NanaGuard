@@ -1,0 +1,10 @@
+{
+  "extName": {
+    "message": "NanaGuard – Blocare reclame, popup-uri și escrocherii",
+    "description": "Extension name"
+  },
+  "extDescription": {
+    "message": "Blochează reclame, bannere, popup-uri, spamul de notificări, avertismentele false de virus și alte escrocherii din browser.",
+    "description": "Extension description"
+  }
+}

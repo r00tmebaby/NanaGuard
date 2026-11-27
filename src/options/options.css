@@ -40,6 +40,12 @@ h2 { font-size: 16px; margin-bottom: 4px; }
   padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg);
 }
 .list-row b { display: block; }
+.list-row label span { display: block; margin-top: 2px; }
+.select {
+  font: inherit; padding: 6px 8px; max-width: 55%; flex: none;
+  border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--fg);
+}
+.select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .meta { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; margin: 12px 0 0; font-size: 13px; }
 .meta dt { color: var(--muted); }
 .meta dd { margin: 0; font-variant-numeric: tabular-nums; }

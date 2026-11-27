@@ -1,5 +1,7 @@
 "use strict";
 (async () => {
+  await BLK.loadI18n();
+  BLK.localize();
   const $ = (id) => document.getElementById(id);
   const ALL_SITES = { origins: ["<all_urls>"] };
   const [tab] = await api.tabs.query({ active: true, currentWindow: true });
@@ -8,6 +10,15 @@
   const fmt = (n) => (n == null ? "–" : n.toLocaleString());
 
   $("version").textContent = "v" + api.runtime.getManifest().version;
+
+  // Sentences with a live number inside: the translated text is split at the number's position.
+  const MARK = "\u0001";
+  const fillWith = (parent, text, node) => {
+    const [before, after = ""] = text.split(MARK);
+    parent.replaceChildren(before, node, after);
+  };
+  fillWith($("smartRow").firstElementChild, BLK.t("popup.smart_spotted", "{count} ads spotted automatically on this page", { count: MARK }), $("smartCount"));
+  fillWith(document.querySelector("details summary"), BLK.t("popup.details_total", "Details · {count} blocked in total", { count: MARK }), $("totalCount"));
 
   const applyAndReload = async () => {
     await api.runtime.sendMessage({ cmd: "apply" });
@@ -58,16 +69,16 @@
       toggle.disabled = !settings.enabled;
       document.body.classList.toggle("off", !settings.enabled || allowed);
       $("siteStatus").textContent = !settings.enabled
-        ? "Protection is paused everywhere."
+        ? BLK.t("popup.status_paused", "Protection is paused everywhere.")
         : allowed
-          ? "Protection is off for this site."
-          : "Ads, trackers, popups and scam tricks are blocked here.";
+          ? BLK.t("popup.status_site_off", "Protection is off for this site.")
+          : BLK.t("popup.status_blocked_here", "Ads, trackers, popups and scam tricks are blocked here.");
     } else {
-      $("host").textContent = "Browser page";
+      $("host").textContent = BLK.t("popup.browser_page", "Browser page");
       toggle.checked = false;
       toggle.disabled = true;
       document.body.classList.add("off");
-      $("siteStatus").textContent = "NanaGuard doesn't run on built-in browser pages.";
+      $("siteStatus").textContent = BLK.t("popup.status_builtin", "NanaGuard doesn't run on built-in browser pages.");
     }
     $("pick").disabled = !host || !settings.enabled || allowed;
     $("blockSite").disabled = !host;
@@ -79,11 +90,11 @@
 
     $("totalCount").textContent = fmt(stats.total || 0);
     $("breakdown").replaceChildren(
-      ...Object.entries(BLK.STAT_LABELS).map(([k, label]) => {
+      ...Object.keys(BLK.STAT_LABELS).map((k) => {
         const li = document.createElement("li");
         const name = document.createElement("span");
         const value = document.createElement("b");
-        name.textContent = label;
+        name.textContent = BLK.tt("STAT_LABELS", k);
         value.textContent = fmt(stats[k] || 0);
         li.append(name, value);
         return li;
@@ -112,7 +123,7 @@
 
   $("blockSite").addEventListener("click", async () => {
     const domain = BLK.normalizeDomain(host);
-    if (!domain || !confirm(`Block ${domain}? It won't open again until you remove it in Settings.`)) return;
+    if (!domain || !confirm(BLK.t("popup.block_confirm", "Block {domain}? It won't open again until you remove it in Settings.", { domain }))) return;
     await BLK.setSiteBlocked(domain, true);
     await applyAndReload();
     window.close();
@@ -141,14 +152,18 @@
     } catch { /* restricted page */ }
     const subject = text || (tab.title || "").replace(/\s[-|–—]\s[^-|–—]+$/, "");
     if (!subject) return;
-    $("checkText").textContent = (text ? "Selected: " : "This page: ") + `“${subject.slice(0, 160)}”`;
+    const quoted = `“${subject.slice(0, 160)}”`;
+    $("checkText").textContent = text
+      ? BLK.t("popup.check_selected", "Selected: {text}", { text: quoted })
+      : BLK.t("popup.check_page", "This page: {text}", { text: quoted });
     $("checkCard").hidden = false;
-    for (const [engine, longLabel] of Object.entries(BLK.FACT_ENGINES)) {
+    for (const engine of Object.keys(BLK.FACT_ENGINES)) {
+      const longLabel = BLK.tt("FACT_ENGINES", engine);
       const b = document.createElement("button");
       b.className = "btn";
       b.title = longLabel;
       b.setAttribute("aria-label", longLabel);
-      b.append(BLK.icon(engine, 18), BLK.FACT_SHORT[engine]);
+      b.append(BLK.icon(engine, 18), BLK.tt("FACT_SHORT", engine));
       b.addEventListener("click", async () => {
         await api.runtime.sendMessage({ cmd: "factCheck", engine, text: subject, url: tab.url });
         window.close();
@@ -219,11 +234,11 @@
     }
   }
 
-  const AI_TITLES = {
-    labelled: "AI-generated (labelled by the platform)",
-    likely: "This video is probably AI-generated",
-    possible: "This may contain AI-generated content",
-  };
+  const aiTitles = () => ({
+    labelled: BLK.t("popup.ai_labelled", "AI-generated (labelled by the platform)"),
+    likely: BLK.t("popup.ai_likely", "This video is probably AI-generated"),
+    possible: BLK.t("popup.ai_possible", "This may contain AI-generated content"),
+  });
 
   // Shows the AI card. checking=true keeps it visible (with a "Checking..." line) while the watermark OCR runs.
   function renderAi(result, checking) {
@@ -235,7 +250,8 @@
       return;
     }
     if (level !== "none") card.classList.add("level-" + level);
-    $("aiTitle").textContent = level === "none" ? "Checking this video..." : (AI_TITLES[level] || AI_TITLES.possible);
+    const titles = aiTitles();
+    $("aiTitle").textContent = level === "none" ? BLK.t("popup.ai_checking", "Checking this video...") : (titles[level] || titles.possible);
     const reasons = level === "none" ? [] : (result.reasons || []);
     $("aiReasons").replaceChildren(
       ...reasons.map((text) => {
@@ -323,7 +339,7 @@
   api.runtime.sendMessage({ cmd: "checkUpdate" }).then((res) => {
     const info = res && res.ok ? res.value : null;
     if (!info || !info.version) return;
-    $("updateVersion").textContent = info.version;
+    $("updateText").textContent = BLK.t("popup.update_available", "NanaGuard {version} is available.", { version: info.version });
     $("updateBanner").hidden = false;
     $("updateBtn").addEventListener("click", () => {
       api.tabs.create({ url: api.runtime.getURL("src/options/options.html#update") });

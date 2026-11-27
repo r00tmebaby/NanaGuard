@@ -36,6 +36,181 @@ var BLK = Object.freeze({
 
   FACT_SHORT: Object.freeze({ google: "Google", chatgpt: "ChatGPT", news: "News", factcheck: "Fact-check" }),
 
+  /* ---------------- languages ---------------- */
+
+  // Interface languages: English is built into the code, the others live in src/i18n/<code>.json.
+  UI_LANGS: Object.freeze(["en", "bg", "de", "el", "es", "fr", "it", "nl", "pl", "pt", "ro", "ru", "tr", "uk"]),
+  // Fact-check answer/search languages: the ones Chrome's built-in translator supports.
+  FACT_LANGS: Object.freeze(["ar", "bg", "bn", "cs", "da", "de", "el", "en", "es", "fi", "fr", "he", "hi", "hr", "hu", "id", "it",
+    "ja", "kn", "ko", "lt", "mr", "nl", "no", "pl", "pt", "ro", "ru", "sk", "sl", "sv", "ta", "te", "th", "tr", "uk", "vi", "zh", "zh-Hant"]),
+  // Text tables above that are translated entry by entry (key "tbl.<TABLE>.<entry>[.<field>]").
+  TEXT_TABLES: Object.freeze(["CATEGORY_INFO", "GUARD_INFO", "FACT_ENGINES", "FACT_SHORT", "STAT_LABELS"]),
+
+  // Active translation. BLK is frozen only one level deep, so this object stays writable.
+  I18N: { lang: "en", table: {} },
+
+  /** Translated text for `key`, or the English given at the call site. "{name}" is replaced from vars.
+   *  Call it when the text is shown, never at script load: translations arrive asynchronously. */
+  t(key, en, vars) {
+    const own = BLK.I18N.table[key];
+    const s = typeof own === "string" && own ? own : String(en ?? key);
+    return vars ? s.replace(/\{(\w+)\}/g, (m, k) => (vars[k] != null ? String(vars[k]) : m)) : s;
+  },
+
+  /** Translated entry of a text table, e.g. tt("GUARD_INFO", "phishing", "title"). */
+  tt(table, key, field) {
+    const entry = BLK.TEXT_TABLES.includes(table) ? BLK[table][key] : undefined;
+    const en = field ? entry && entry[field] : entry;
+    return BLK.t(`tbl.${table}.${key}${field ? "." + field : ""}`, typeof en === "string" ? en : String(key));
+  },
+
+  /** Loads the active translation (written to storage.local by the background). Returns its language. */
+  async loadI18n() {
+    try {
+      const { i18n } = await api.storage.local.get("i18n");
+      if (i18n && typeof i18n.m === "object" && i18n.m && BLK.UI_LANGS.includes(i18n.lang)) {
+        BLK.I18N.lang = i18n.lang;
+        BLK.I18N.table = i18n.m;
+      }
+    } catch { /* keep English */ }
+    return BLK.I18N.lang;
+  },
+
+  /** Translates static page text: data-i18n (text, **bold** allowed) and data-i18n-title / -aria-label /
+   *  -placeholder / -alt (attributes). English stays in the HTML and is kept when there is no translation. */
+  localize(root = document) {
+    const table = BLK.I18N.table;
+    const doc = root.ownerDocument || root;
+    if (doc.documentElement) doc.documentElement.lang = BLK.I18N.lang;
+    for (const el of root.querySelectorAll("[data-i18n]")) {
+      const s = table[el.dataset.i18n];
+      if (typeof s !== "string" || !s) continue;
+      el.replaceChildren(...s.split(/\*\*(.+?)\*\*/).map((part, i) => {
+        if (i % 2 === 0) return doc.createTextNode(part);
+        const b = doc.createElement("b");
+        b.textContent = part;
+        return b;
+      }));
+    }
+    for (const attr of ["title", "aria-label", "placeholder", "alt"]) {
+      for (const el of root.querySelectorAll(`[data-i18n-${attr}]`)) {
+        const s = table[el.getAttribute(`data-i18n-${attr}`)];
+        if (typeof s === "string" && s) el.setAttribute(attr, s);
+      }
+    }
+  },
+
+  /** Normalises a browser/BCP 47 code to ours: "en-GB" → "en", "zh-TW" → "zh-Hant", "nb" → "no", "iw" → "he". */
+  normLang(code) {
+    const c = String(code || "").replace(/_/g, "-").toLowerCase();
+    if (/^zh-(tw|hk|mo|hant)/.test(c)) return "zh-Hant";
+    const base = c.split("-")[0];
+    return { nb: "no", nn: "no", iw: "he" }[base] || base;
+  },
+
+  browserLang() {
+    try {
+      return BLK.normLang(api.i18n.getUILanguage()) || "en";
+    } catch {
+      return "en";
+    }
+  },
+
+  browserRegion() {
+    try {
+      const m = /^[a-z]{2,3}[-_]([a-z]{2})\b/i.exec(api.i18n.getUILanguage());
+      return m ? m[1].toUpperCase() : "";
+    } catch {
+      return "";
+    }
+  },
+
+  /** Interface language for a setting ("" = automatic: the browser's language if we have it). */
+  uiLangFor(setting) {
+    if (BLK.UI_LANGS.includes(setting)) return setting;
+    const browser = BLK.browserLang();
+    return BLK.UI_LANGS.includes(browser) ? browser : "en";
+  },
+
+  /** Fact-check languages: answer (ChatGPT reply, Google interface) and search ("" = the text's own). */
+  factLangs(settings = {}) {
+    const ok = (c) => BLK.FACT_LANGS.includes(c);
+    const browser = BLK.browserLang();
+    const answer = ok(settings.factLang) ? settings.factLang : ok(settings.uiLang) ? settings.uiLang : ok(browser) ? browser : "en";
+    return { answer, search: ok(settings.factSearchLang) ? settings.factSearchLang : "" };
+  },
+
+  /** Language name, e.g. langName("bg", "en") → "Bulgarian", langName("bg", "bg") → "Български".
+   *  inSentence keeps the language's own casing ("английски"), for use inside a sentence. */
+  langName(code, inLang, inSentence = false) {
+    const where = inLang || BLK.I18N.lang || "en";
+    try {
+      const n = new Intl.DisplayNames([where], { type: "language" }).of(code);
+      if (!n || inSentence) return n || code;
+      return n.charAt(0).toLocaleUpperCase(where) + n.slice(1);
+    } catch {
+      return code;
+    }
+  },
+
+  /** Rough language of a text from its alphabet and special letters (when no language detector is
+   *  available). Only steers which Google News edition and fact-check filter a search uses. */
+  guessLang(text, fallback = "en") {
+    const s = String(text || "");
+    const pick = (list, other) => (list.includes(fallback) ? fallback : other);
+    const SCRIPTS = [[/[぀-ヿ]/, "ja"], [/[가-힯]/, "ko"], [/[一-鿿]/, "zh"], [/[฀-๿]/, "th"],
+      [/[֐-׿]/, "he"], [/[؀-ۿ]/, "ar"], [/[ঀ-৿]/, "bn"], [/[஀-௿]/, "ta"],
+      [/[ఀ-౿]/, "te"], [/[ಀ-೿]/, "kn"], [/[Ͱ-Ͽ]/, "el"]];
+    for (const [re, code] of SCRIPTS) if (re.test(s)) return code;
+    if (/[ऀ-ॿ]/.test(s)) return pick(["mr"], "hi");
+    if (/[Ѐ-ӿ]/.test(s)) {
+      if (/[іїєґ]/i.test(s)) return "uk";
+      if (/[ыэё]/i.test(s)) return "ru";
+      if (/ъ/i.test(s)) return "bg";
+      return pick(["bg", "ru", "uk"], "ru");
+    }
+    const LATIN = [[/[ơưđạảấầẩẫậắằẳẵặẹẻẽếềểễệỉịọỏốồổỗộớờởỡợụủứừửữựỳỵỷỹ]/i, "vi"], [/[ğı]/, "tr"], [/[ąęłśźż]/i, "pl"],
+      [/[ășțşţ]/i, "ro"], [/[ěřů]/i, "cs"], [/[ľĺŕ]/i, "sk"], [/[őű]/i, "hu"], [/[ėįųū]/i, "lt"], [/[ćđ]/i, "hr"],
+      [/[ñ¿¡]/i, "es"], [/[ãõ]/i, "pt"], [/[åæø]/i, () => pick(["da", "no", "sv"], "sv")], [/[ßü]/i, "de"],
+      [/[äö]/i, () => pick(["de", "fi", "sv"], "de")], [/[çèêëàùûœ]/i, "fr"], [/[ìò]/i, "it"],
+      [/[čšž]/i, () => pick(["cs", "sk", "sl", "hr", "lt"], "cs")], [/[áéíóú]/i, () => pick(["es", "pt", "it", "fr", "hu", "cs", "sk"], "es")]];
+    for (const [re, code] of LATIN) if (re.test(s)) return typeof code === "function" ? code() : code;
+    return pick(["id", "nl"], "en"); // plain ASCII
+  },
+
+  // Google News editions: language → [hl, gl, ceid language]. Others get just hl= and Google picks.
+  NEWS_EDITIONS: Object.freeze({
+    ar: ["ar", "EG", "ar"], bg: ["bg", "BG", "bg"], bn: ["bn", "BD", "bn"], cs: ["cs", "CZ", "cs"], de: ["de", "DE", "de"],
+    el: ["el", "GR", "el"], es: ["es", "ES", "es"], fr: ["fr", "FR", "fr"], he: ["he", "IL", "he"], hi: ["hi", "IN", "hi"],
+    hu: ["hu", "HU", "hu"], id: ["id", "ID", "id"], it: ["it", "IT", "it"], ja: ["ja", "JP", "ja"], ko: ["ko", "KR", "ko"],
+    lt: ["lt", "LT", "lt"], mr: ["mr", "IN", "mr"], nl: ["nl", "NL", "nl"], no: ["no", "NO", "no"], pl: ["pl", "PL", "pl"],
+    pt: ["pt-BR", "BR", "pt-419"], ro: ["ro", "RO", "ro"], ru: ["ru", "RU", "ru"], sk: ["sk", "SK", "sk"], sl: ["sl", "SI", "sl"],
+    sv: ["sv", "SE", "sv"], ta: ["ta", "IN", "ta"], te: ["te", "IN", "te"], th: ["th", "TH", "th"], tr: ["tr", "TR", "tr"],
+    uk: ["uk", "UA", "uk"], vi: ["vi", "VN", "vi"], zh: ["zh-CN", "CN", "zh-Hans"], "zh-Hant": ["zh-TW", "TW", "zh-Hant"],
+  }),
+
+  newsParams(lang) {
+    const region = BLK.browserRegion();
+    let ed = BLK.NEWS_EDITIONS[lang];
+    if (lang === "en") {
+      const gl = ["US", "GB", "AU", "CA", "IN", "IE", "NZ", "ZA"].includes(region) ? region : "US";
+      ed = [`en-${gl}`, gl, "en"];
+    } else if (lang === "pt" && region === "PT") ed = ["pt-PT", "PT", "pt-150"];
+    return ed ? `hl=${ed[0]}&gl=${ed[1]}&ceid=${ed[1]}:${ed[2]}` : `hl=${encodeURIComponent(lang)}`;
+  },
+
+  // Words added to a Google search so fact-check articles rank first.
+  FACT_PHRASES: Object.freeze({
+    en: "fact check", bg: "проверка на факти", cs: "ověřování faktů", de: "Faktencheck", el: "έλεγχος γεγονότων",
+    es: "verificación de datos", fr: "vérification des faits", it: "verifica dei fatti", nl: "factcheck", pl: "sprawdzanie faktów",
+    pt: "checagem de fatos", ro: "verificarea faptelor", ru: "проверка фактов", tr: "doğruluk kontrolü", uk: "перевірка фактів",
+  }),
+
+  /** Google's code for a language (hl=). */
+  googleLang(code) {
+    return code === "zh" ? "zh-CN" : code === "zh-Hant" ? "zh-TW" : code;
+  },
+
   // Simple outline icons (24×24, stroke = currentColor), built with DOM APIs (no innerHTML).
   ICONS: Object.freeze({
     news: [["path", "M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"], ["path", "M18 14h-8"], ["path", "M15 18h-5"], ["path", "M10 6h8v4h-8z"]],
@@ -75,17 +250,27 @@ var BLK = Object.freeze({
     return (words.length ? words : String(text || "").split(/\s+/)).slice(0, max).join(" ");
   },
 
-  /** Builds the new-tab URL for a fact check. Nothing is sent until the user clicks. */
-  factCheckUrl(engine, text, pageUrl) {
+  /** Builds the new-tab URL for a fact check. Nothing is sent until the user clicks.
+   *  langs: { answer, search, textLang } from factLangs(); textLang = language the text is in (guessed if absent). */
+  factCheckUrl(engine, text, pageUrl, langs = {}) {
     const t = String(text || "").replace(/\s+/g, " ").trim().slice(0, 300);
-    if (engine === "news") return `https://news.google.com/search?q=${encodeURIComponent(BLK.keywords(t, 6))}&hl=en`;
-    // Fact-checker search matches reviewed claims by keyword: short, no figures.
-    if (engine === "factcheck") return `https://toolbox.google.com/factcheck/explorer/search/${encodeURIComponent(BLK.keywords(t, 5, false))};hl=en`;
+    const answer = BLK.FACT_LANGS.includes(langs.answer) ? langs.answer : "en";
+    const search = BLK.FACT_LANGS.includes(langs.search) ? langs.search : "";
+    const textLang = langs.textLang || BLK.guessLang(t, answer);
+    // News edition and fact-checker language filter follow the language the search text is in.
+    if (engine === "news") return `https://news.google.com/search?q=${encodeURIComponent(BLK.keywords(t, 6))}&${BLK.newsParams(textLang)}`;
+    // Fact-checker search matches reviewed claims by keyword: short, no figures. Its hl= is the claim-language filter.
+    if (engine === "factcheck") {
+      return `https://toolbox.google.com/factcheck/explorer/search/${encodeURIComponent(BLK.keywords(t, 5, false))};hl=${BLK.googleLang(textLang)}`;
+    }
     if (engine === "chatgpt") {
       const where = pageUrl ? ` (I saw it here: ${pageUrl})` : "";
-      return `https://chatgpt.com/?q=${encodeURIComponent(`Is this true, misleading or a scam? Check reliable sources and fact-checkers, then explain simply for a non-technical reader: "${t}"${where}`)}`;
+      const sources = search ? ` Also look for sources in ${BLK.langName(search, "en")}.` : "";
+      const reply = ` Answer in ${BLK.langName(answer, "en")}.`;
+      return `https://chatgpt.com/?q=${encodeURIComponent(`Is this true, misleading or a scam? Check reliable sources and fact-checkers, then explain simply for a non-technical reader: "${t}"${where}${sources}${reply}`)}`;
     }
-    return `https://www.google.com/search?q=${encodeURIComponent(`${t} fact check`)}`;
+    const phrase = BLK.FACT_PHRASES[textLang] || BLK.FACT_PHRASES.en;
+    return `https://www.google.com/search?q=${encodeURIComponent(`${t} ${phrase}`)}&hl=${BLK.googleLang(answer)}`;
   },
 
   async setGuard(key, on) {
@@ -116,7 +301,7 @@ var BLK = Object.freeze({
   async getSettings() {
     const s = await api.storage.sync.get({
       enabled: true, ads: true, lists: {}, smart: true, guards: {},
-      allowlist: [], blocklist: [], smartOff: [], trusted: [],
+      allowlist: [], blocklist: [], smartOff: [], trusted: [], uiLang: "", factLang: "", factSearchLang: "",
     });
     const guards = {};
     for (const g of Object.keys(BLK.GUARD_INFO)) guards[g] = s.guards?.[g] !== false;
@@ -132,6 +317,9 @@ var BLK = Object.freeze({
       blocklist: list(s.blocklist),
       smartOff: list(s.smartOff),
       trusted: list(s.trusted),
+      uiLang: BLK.UI_LANGS.includes(s.uiLang) ? s.uiLang : "",
+      factLang: BLK.FACT_LANGS.includes(s.factLang) ? s.factLang : "",
+      factSearchLang: BLK.FACT_LANGS.includes(s.factSearchLang) ? s.factSearchLang : "",
     };
   },
 

@@ -547,6 +547,37 @@ try {
   check("fact check: opens in a new tab", !!fcTab);
   if (fcTab) await fcTab.close();
 
+  // Languages: answer/search language in the URLs.
+  const fcLang = await worker.evaluate(() => [
+    BLK.factCheckUrl("news", "Бургас е най-хубавият град в България", null, { answer: "bg" }),
+    BLK.factCheckUrl("chatgpt", "x", null, { answer: "bg", search: "en" }),
+    BLK.factCheckUrl("factcheck", "vaccine safety", null, { answer: "bg", search: "en", textLang: "en" }),
+    BLK.factCheckUrl("google", "Луната е от сирене", null, { answer: "bg" }),
+  ]);
+  check("fact check languages: Bulgarian story opens the Bulgarian News edition", fcLang[0].includes("ceid=BG:bg"), fcLang[0].slice(-40));
+  check("fact check languages: ChatGPT answers in the chosen language", /Also look for sources in English\. Answer in Bulgarian\.$/.test(decodeURIComponent(fcLang[1])));
+  check("fact check languages: fact-checkers filtered to the search language", fcLang[2].endsWith(";hl=en"), fcLang[2]);
+  check("fact check languages: Google adds 'fact check' in the story's language", decodeURIComponent(fcLang[3]).includes("проверка на факти") && fcLang[3].endsWith("&hl=bg"));
+
+  // With a search language the check goes through NanaGuard's translation page. Headless Chrome has no
+  // language pack yet, so the page asks to download one; "Search without translating" still searches.
+  await worker.evaluate(() => chrome.storage.sync.set({ factSearchLang: "en" }));
+  await worker.evaluate(() => nanaguard.openCheck("google", "Бургас е най-хубавият град в България", null, null));
+  const chk = await waitFor(async () => (await browser.pages()).find((p) => /\/src\/check\/check\.html|google\.[a-z.]+\/(search|sorry)|consent\.google/.test(p.url())), 8000);
+  let searched = "";
+  if (chk) {
+    await sleep(1000);
+    const asking = await chk.evaluate(() => { const a = document.getElementById("ask"); return !!a && !a.hidden; }).catch(() => false);
+    if (asking) {
+      const req = chk.waitForRequest((r) => r.url().startsWith("https://www.google.com/search"), { timeout: 8000 }).then((r) => r.url(), () => "");
+      await chk.click("#skip");
+      searched = await req;
+    } else searched = chk.url();
+    await chk.close().catch(() => {});
+  }
+  await worker.evaluate(() => chrome.storage.sync.set({ factSearchLang: "" }));
+  check("fact check languages: search language goes through the translation page, then searches", /google\.[a-z.]+\/(search|sorry)|consent\.google/.test(searched), searched.slice(0, 90));
+
   // Real YouTube: the "Check facts" button appears under the title (needs internet).
   const ytp = await browser.newPage();
   await ytp.setViewport({ width: 1280, height: 900 });
@@ -692,6 +723,42 @@ try {
   check("update: Settings shows the new version with download link", /99\.0\.0 is available/.test(optUpd.status) && optUpd.how && optUpd.dl.includes("c.zip"), optUpd.status);
   check("author shown in Settings", /Made by r00tmebaby/.test(optUpd.author));
   await worker.evaluate(async () => { await chrome.storage.local.set({ updateInfo: null, updateCheckedAt: 0 }); });
+
+  /* --- interface language --- */
+  const i18nLang = () => worker.evaluate(async () => ((await chrome.storage.local.get("i18n")).i18n || {}).lang);
+  await worker.evaluate(() => chrome.storage.sync.set({ uiLang: "bg" }));
+  const bgReady = await waitFor(async () => (await i18nLang()) === "bg", 6000);
+  const optBg = await browser.newPage();
+  const bgErrs = [];
+  optBg.on("pageerror", (e) => bgErrs.push(e.message));
+  await optBg.goto(`chrome-extension://${extId}/src/options/options.html#language`, { waitUntil: "load" });
+  await sleep(1200);
+  const bgUi = await optBg.evaluate(() => ({
+    lang: document.documentElement.lang,
+    tab: document.querySelector('[data-tab="language"]').textContent,
+    guard: (document.querySelector("#guards b") || {}).textContent,
+    selected: document.getElementById("uiLang").value,
+  }));
+  await optBg.close();
+  check("language: Settings switch to Bulgarian", !!bgReady && bgUi.lang === "bg" && bgUi.tab !== "Language" && /[а-я]/i.test(bgUi.tab + bgUi.guard) && bgUi.selected === "bg" && !bgErrs.length,
+    JSON.stringify(bgUi) + bgErrs.join(" | "));
+  // The warning lives in a closed shadow root: read its text through CDP.
+  const bgWarn = await visit(`http://shop-help.test:${port}/giftcard`, 2500);
+  const bgWarnText = await (async () => {
+    const s = await bgWarn.createCDPSession();
+    const { root } = await s.send("DOM.getDocument", { depth: -1, pierce: true });
+    let out = "";
+    (function walk(n, inHost) {
+      const h = inHost || n.nodeName === "NANAGUARD-WARNING";
+      if (h && n.nodeType === 3 && n.parentId && !/\{/.test(n.nodeValue)) out += n.nodeValue + " ";
+      for (const c of [...(n.children || []), ...(n.shadowRoots || [])]) walk(c, h);
+    })(root, false);
+    return out.trim();
+  })().catch(() => "");
+  await bgWarn.close();
+  check("language: scam warning shown in Bulgarian", /[а-яА-Я]{4,}/.test(bgWarnText), bgWarnText.slice(0, 80));
+  await worker.evaluate(() => chrome.storage.sync.set({ uiLang: "" }));
+  check("language: back to automatic (English)", !!(await waitFor(async () => (await i18nLang()) === "en", 6000)));
 
   /* --- UI pages --- */
   for (const pth of ["src/popup/popup.html", "src/options/options.html", "src/blocked/blocked.html#https://x.test/"]) {

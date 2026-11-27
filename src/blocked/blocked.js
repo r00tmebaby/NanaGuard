@@ -1,5 +1,7 @@
 "use strict";
 (async () => {
+  await BLK.loadI18n();
+  BLK.localize();
   const $ = (id) => document.getElementById(id);
   const url = location.hash.slice(1);
   const host = BLK.hostFromUrl(url);
@@ -10,10 +12,10 @@
 
   if (info.reason === "user") {
     document.body.classList.add("user");
-    document.title = "Blocked by you – NanaGuard";
-    $("title").textContent = "You blocked this site";
-    $("lead").textContent = "This website is on your Blocked sites list, so NanaGuard won't open it.";
-    $("advText").textContent = "To open it again, remove it from Blocked sites in Settings.";
+    document.title = BLK.t("blocked.user_page_title", "Blocked by you – NanaGuard");
+    $("title").textContent = BLK.t("blocked.user_title", "You blocked this site");
+    $("lead").textContent = BLK.t("blocked.user_lead", "This website is on your Blocked sites list, so NanaGuard won't open it.");
+    $("advText").textContent = BLK.t("blocked.user_adv", "To open it again, remove it from Blocked sites in Settings.");
     $("proceed").hidden = true;
     $("settings").hidden = false;
   }

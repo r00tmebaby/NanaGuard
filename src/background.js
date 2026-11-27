@@ -52,6 +52,31 @@ const getPopupHosts = async () => new Set((await loadJson("rules/popup-hosts.jso
 /** Registrable-ish domain: last two labels (three for co.uk-style). */
 const baseDomain = (host) => BLK.baseDomain(host);
 
+/* ---------------- interface language ---------------- */
+
+// The background owns the active translation: it loads src/i18n/<lang>.json and keeps it in
+// storage.local, where pages and content scripts pick it up with BLK.loadI18n().
+const VERSION = api.runtime.getManifest().version;
+let i18nReady = Promise.resolve("en");
+function refreshI18n() {
+  i18nReady = (async () => {
+    const { uiLang } = await BLK.getSettings();
+    const lang = BLK.uiLangFor(uiLang);
+    const m = lang === "en" ? {} : (await loadJson(`src/i18n/${lang}.json`)) || {};
+    BLK.I18N.lang = lang;
+    BLK.I18N.table = m;
+    // Write only on a real change: open Settings pages reload when it changes.
+    const { i18n } = await api.storage.local.get("i18n");
+    if (!i18n || i18n.lang !== lang || i18n.v !== VERSION) await api.storage.local.set({ i18n: { lang, m, v: VERSION } });
+    return lang;
+  })().catch((e) => {
+    console.error("NanaGuard i18n:", e);
+    return "en";
+  });
+  return i18nReady;
+}
+refreshI18n();
+
 /* ---------------- apply settings ---------------- */
 
 let chain = Promise.resolve();
@@ -216,7 +241,8 @@ async function updateDynamicRules() {
 async function updateIcon() {
   const { enabled } = await BLK.getSettings();
   await api.action.setIcon({ path: enabled ? ICON_ON : ICON_OFF });
-  await api.action.setTitle({ title: enabled ? "NanaGuard – protecting you" : "NanaGuard – paused" });
+  await i18nReady;
+  await api.action.setTitle({ title: enabled ? BLK.t("bg.title_protecting", "NanaGuard – protecting you") : BLK.t("bg.title_paused", "NanaGuard – paused") });
 }
 
 /* ---------------- per-site cosmetics ---------------- */
@@ -481,16 +507,17 @@ let menuChain = Promise.resolve();
 
 async function rebuildMenus() {
   if (!menus) return;
+  await i18nReady;
   await menus.removeAll();
   const { enabled, guards } = await BLK.getSettings();
   if (enabled && guards.ai) {
-    menus.create({ id: "kg-img-check", title: "Is this image real or AI? (NanaGuard)", contexts: ["image"] });
-    menus.create({ id: "kg-img-lens", title: "Find where this image came from (Google Lens)", contexts: ["image"] });
+    menus.create({ id: "kg-img-check", title: BLK.t("bg.menu_image_check", "Is this image real or AI? (NanaGuard)"), contexts: ["image"] });
+    menus.create({ id: "kg-img-lens", title: BLK.t("bg.menu_image_lens", "Find where this image came from (Google Lens)"), contexts: ["image"] });
   }
   if (!enabled || !guards.factcheck) return;
-  menus.create({ id: "blk", title: "Check facts with NanaGuard", contexts: MENU_CONTEXTS });
-  for (const [engine, title] of Object.entries(BLK.FACT_ENGINES)) {
-    menus.create({ id: `blk-${engine}`, parentId: "blk", title, contexts: MENU_CONTEXTS });
+  menus.create({ id: "blk", title: BLK.t("bg.menu_check_facts", "Check facts with NanaGuard"), contexts: MENU_CONTEXTS });
+  for (const engine of Object.keys(BLK.FACT_ENGINES)) {
+    menus.create({ id: `blk-${engine}`, parentId: "blk", title: BLK.tt("FACT_ENGINES", engine), contexts: MENU_CONTEXTS });
   }
 }
 
@@ -498,14 +525,22 @@ async function updateMenus() {
   return (menuChain = menuChain.then(rebuildMenus).catch((e) => console.error("NanaGuard menus:", e)));
 }
 
-function openCheck(engine, text, pageUrl, tab) {
-  if (!(engine in BLK.FACT_ENGINES) || !String(text || "").trim()) return Promise.resolve(false);
-  const props = { url: BLK.factCheckUrl(engine, text, pageUrl) };
+async function openCheck(engine, text, pageUrl, tab) {
+  const t = String(text || "").replace(/\s+/g, " ").trim().slice(0, 300);
+  if (!(engine in BLK.FACT_ENGINES) || !t) return false;
+  const langs = BLK.factLangs(await BLK.getSettings());
+  // With a search language the text may need translating first. Chrome's built-in translator only
+  // runs in pages, so the check page translates and then opens the search. ChatGPT needs no translation.
+  const url = engine !== "chatgpt" && langs.search
+    ? api.runtime.getURL(`src/check/check.html?e=${engine}&q=${encodeURIComponent(t)}`)
+    : BLK.factCheckUrl(engine, t, pageUrl, langs);
+  const props = { url };
   if (tab) {
     props.index = tab.index + 1;
     props.openerTabId = tab.id;
   }
-  return api.tabs.create(props).then(() => true);
+  await api.tabs.create(props);
+  return true;
 }
 
 menus?.onClicked.addListener((info, tab) => {
@@ -652,11 +687,11 @@ async function lensFrame(tabId, rect, dpr, vw) {
 
 const IMG_MAX_BYTES = 15 * 1024 * 1024;
 const IMG_TIMEOUT_MS = 15000;
-const IMAGE_VERDICTS = {
-  labelled: "This image says it was made with AI",
-  likely: "This image is probably AI-made",
-  possible: "This image may be AI-made",
-};
+const imageVerdicts = () => ({
+  labelled: BLK.t("bg.verdict_labelled", "This image says it was made with AI"),
+  likely: BLK.t("bg.verdict_likely", "This image is probably AI-made"),
+  possible: BLK.t("bg.verdict_possible", "This image may be AI-made"),
+});
 
 async function fetchImageBytes(src) {
   if (!/^(https?:|data:)/i.test(src)) return null;
@@ -681,11 +716,12 @@ async function checkImage(info, tab) {
     .sendMessage(tab.id, { cmd: "showInfo", id: "img-" + Date.now(), ...card }, { frameId: 0 })
     .catch(() => {});
   const buf = await fetchImageBytes(String(info.srcUrl || ""));
+  await i18nReady;
   if (!buf) {
     return showCard({
       level: "medium",
-      title: "Couldn't check this image",
-      lines: ["The website did not allow NanaGuard to read the image file."],
+      title: BLK.t("bg.image_no_read_title", "Couldn't check this image"),
+      lines: [BLK.t("bg.image_no_read_line", "The website did not allow NanaGuard to read the image file.")],
     });
   }
   const result = BlkAI.scanImageBytes(new Uint8Array(buf));
@@ -693,20 +729,21 @@ async function checkImage(info, tab) {
   if (level === "none") {
     return showCard({
       level: "medium",
-      title: "No AI marks found in this image",
+      title: BLK.t("bg.image_no_marks_title", "No AI marks found in this image"),
       lines: [
-        "The file has no AI labels or generator data. That does not prove it is real: many AI images have this information removed.",
-        "Tip: right-click the image again and choose \"Find where this image came from\".",
+        BLK.t("bg.image_no_marks_line", "The file has no AI labels or generator data. That does not prove it is real: many AI images have this information removed."),
+        BLK.t("bg.image_no_marks_tip", "Tip: right-click the image again and choose \"Find where this image came from\"."),
       ],
     });
   }
   record("ailabel", tab.id);
   const reasons = Array.isArray(result.reasons) && result.reasons.length
     ? result.reasons
-    : ["NanaGuard found AI signals in this image."];
+    : [BLK.t("bg.image_signals", "NanaGuard found AI signals in this image.")];
+  const verdicts = imageVerdicts();
   return showCard({
     level: "high",
-    title: IMAGE_VERDICTS[level] || IMAGE_VERDICTS.possible,
+    title: verdicts[level] || verdicts.possible,
     lines: reasons,
   });
 }
@@ -775,7 +812,8 @@ async function checkForUpdate(force = false) {
       ? { version, page: String(rel.html_url || ""), chromeZip: asset(/chrome/i), firefoxZip: asset(/firefox/i) }
       : null;
     await api.storage.local.set({ updateInfo: info });
-    await api.action.setTitle({ title: info ? `NanaGuard – version ${version} available` : "NanaGuard – protecting you" });
+    await i18nReady;
+    await api.action.setTitle({ title: info ? BLK.t("bg.title_update", "NanaGuard – version {version} available", { version }) : BLK.t("bg.title_protecting", "NanaGuard – protecting you") });
     return info;
   } catch {
     return null;
@@ -808,6 +846,7 @@ api.storage.onChanged.addListener((changes, area) => {
     applySettings();
   }
   if (area === "sync" && (changes.enabled || changes.guards)) updateMenus();
+  if (area === "sync" && changes.uiLang) refreshI18n().then(() => Promise.all([updateMenus(), updateIcon()])).catch(() => {});
   if (area === "local" && changes.learnedNetworks) {
     const was = Object.entries(changes.learnedNetworks.oldValue || {}).filter(([, v]) => v.blocked && !v.ignored).length;
     const now = Object.entries(changes.learnedNetworks.newValue || {}).filter(([, v]) => v.blocked && !v.ignored).length;
@@ -955,4 +994,4 @@ api.tabs.onRemoved.addListener((tabId) => {
 });
 
 // Expose for tests/debugging in the service worker console.
-globalThis.nanaguard = { applySettings, cosmeticFor, learn, getMeta, officialSite, updateMenus, openCheck, ocrVideo, lensFrame, checkImage };
+globalThis.nanaguard = { applySettings, cosmeticFor, learn, getMeta, officialSite, updateMenus, openCheck, ocrVideo, lensFrame, checkImage, refreshI18n };

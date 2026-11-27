@@ -1,5 +1,7 @@
 "use strict";
-(() => {
+(async () => {
+  await BLK.loadI18n();
+  BLK.localize();
   const $ = (id) => document.getElementById(id);
   const ALL_SITES = { origins: ["<all_urls>"] };
   const apply = () => api.runtime.sendMessage({ cmd: "apply" });
@@ -9,7 +11,15 @@
     return node;
   };
 
-  $("version").textContent = "Version " + api.runtime.getManifest().version;
+  $("version").textContent = BLK.t("options.version", "Version {version}", { version: api.runtime.getManifest().version });
+  document.title = BLK.t("options.page_title", "NanaGuard settings");
+
+  // Sentences with an element inside: the translated text is split at the element's position.
+  const MARK = "\u0001";
+  {
+    const [before, after = ""] = BLK.t("options.update_reload", "Open {page} and click the reload button on NanaGuard.", { page: MARK }).split(MARK);
+    $("updateReload").replaceChildren(before, el("code", { textContent: "chrome://extensions" }), after);
+  }
 
   /* ---------- updates (manual installs only; store installs update themselves) ---------- */
   async function showUpdate(force) {
@@ -19,18 +29,18 @@
       manual = !self || self.installType !== "normal";
     } catch { /* assume manual */ }
     if (!manual) { $("updateCard").hidden = true; return; }
-    $("updateStatus").textContent = "Checking for a new version…";
+    $("updateStatus").textContent = BLK.t("options.update_checking", "Checking for a new version…");
     const res = await api.runtime.sendMessage({ cmd: "checkUpdate", force }).catch(() => null);
     const info = res && res.ok ? res.value : null;
     const current = api.runtime.getManifest().version;
     if (info && info.version) {
-      $("updateStatus").textContent = `NanaGuard ${info.version} is available (you have ${current}).`;
+      $("updateStatus").textContent = BLK.t("options.update_available", "NanaGuard {version} is available (you have {current}).", { version: info.version, current });
       $("dlChrome").href = info.chromeZip || info.page;
       $("dlFirefox").href = info.firefoxZip || info.page;
       $("dlPage").href = info.page || "https://github.com/r00tmebaby/NanaGuard/releases/latest";
       $("updateHow").hidden = false;
     } else {
-      $("updateStatus").textContent = `You have the latest version (${current}).`;
+      $("updateStatus").textContent = BLK.t("options.update_latest", "You have the latest version ({current}).", { current });
       $("updateHow").hidden = true;
     }
   }
@@ -52,17 +62,42 @@
   fromHash();
   addEventListener("hashchange", fromHash);
 
+  /* ---------- language ---------- */
+  // "Български (Bulgarian)": the language's own name, plus its name in the current interface language.
+  const bothNames = (code) => {
+    const own = BLK.langName(code, code);
+    const here = BLK.langName(code);
+    return own === here ? own : `${own} (${here})`;
+  };
+  const option = (value, label) => el("option", { value, textContent: label });
+  const byName = (list) => [...list].sort((a, b) => bothNames(a).localeCompare(bothNames(b), BLK.I18N.lang));
+  {
+    const s = await BLK.getSettings();
+    $("uiLang").replaceChildren(
+      option("", BLK.t("options.lang_auto", "Automatic: {lang}", { lang: bothNames(BLK.uiLangFor("")) })),
+      ...byName(BLK.UI_LANGS).map((c) => option(c, bothNames(c))));
+    $("factLang").replaceChildren(
+      option("", BLK.t("options.lang_auto", "Automatic: {lang}", { lang: bothNames(BLK.factLangs({ uiLang: s.uiLang }).answer) })),
+      ...byName(BLK.FACT_LANGS).map((c) => option(c, bothNames(c))));
+    $("factSearchLang").replaceChildren(
+      option("", BLK.t("options.fact_search_same", "The language of the text (no translation)")),
+      ...byName(BLK.FACT_LANGS).map((c) => option(c, bothNames(c))));
+  }
+  for (const id of ["uiLang", "factLang", "factSearchLang"]) {
+    $(id).addEventListener("change", (e) => api.storage.sync.set({ [id]: e.target.value }));
+  }
+
   /* ---------- render ---------- */
   const chip = (text, label, onRemove) =>
     el("li", {}, el("span", { textContent: text }),
-      el("button", { className: "btn", textContent: label, onclick: onRemove, ariaLabel: `${label} ${text}` }));
+      el("button", { className: "btn", textContent: label, onclick: onRemove, ariaLabel: BLK.t("options.chip_aria", "{action} {site}", { action: label, site: text }) }));
 
   let meta = null;
   let renderGen = 0;
 
   async function render() {
     const gen = ++renderGen;
-    const { enabled, lists, smart, allowlist, blocklist, smartOff, guards, trusted } = await BLK.getSettings();
+    const { enabled, lists, smart, allowlist, blocklist, smartOff, guards, trusted, uiLang, factLang, factSearchLang } = await BLK.getSettings();
     const stats = await BLK.getLocal("stats", {});
     const hidden = await BLK.getLocal("hidden", {});
     const networks = await BLK.getLocal("learnedNetworks", {});
@@ -74,27 +109,31 @@
     $("perm").hidden = hasPerm;
     $("global").checked = enabled;
     $("smart").checked = smart;
+    $("uiLang").value = uiLang;
+    $("factLang").value = factLang;
+    $("factSearchLang").value = factSearchLang;
 
     /* filter lists */
     $("lists").replaceChildren(
       ...BLK.CATEGORIES.map((cat) => {
-        const info = BLK.CATEGORY_INFO[cat];
+        const title = BLK.tt("CATEGORY_INFO", cat, "title");
+        const desc = BLK.tt("CATEGORY_INFO", cat, "desc");
         const m = meta && meta.categories[cat];
         const counts = m
           ? [
-              m.networkRules && `${m.networkRules.toLocaleString()} network rules`,
-              m.dangerousHosts && `${m.dangerousHosts.toLocaleString()} dangerous sites`,
-              (m.genericSelectors + m.siteSelectors) && `${(m.genericSelectors + m.siteSelectors).toLocaleString()} hiding rules`,
-              m.scriptletHosts && `fixes for ${m.scriptletHosts.toLocaleString()} sites`,
+              m.networkRules && BLK.t("options.count_network_rules", "{n} network rules", { n: m.networkRules.toLocaleString() }),
+              m.dangerousHosts && BLK.t("options.count_dangerous_sites", "{n} dangerous sites", { n: m.dangerousHosts.toLocaleString() }),
+              (m.genericSelectors + m.siteSelectors) && BLK.t("options.count_hiding_rules", "{n} hiding rules", { n: (m.genericSelectors + m.siteSelectors).toLocaleString() }),
+              m.scriptletHosts && BLK.t("options.count_site_fixes", "fixes for {n} sites", { n: m.scriptletHosts.toLocaleString() }),
             ].filter(Boolean).join(" · ")
           : "";
-        const input = el("input", { type: "checkbox", checked: lists[cat], ariaLabel: info.title });
+        const input = el("input", { type: "checkbox", checked: lists[cat], ariaLabel: title });
         input.addEventListener("change", async () => {
           await BLK.setList(cat, input.checked);
           await apply();
         });
         return el("div", { className: "list-row" },
-          el("div", {}, el("b", { textContent: info.title }), el("div", { className: "muted small", textContent: info.desc }),
+          el("div", {}, el("b", { textContent: title }), el("div", { className: "muted small", textContent: desc }),
             el("div", { className: "muted small", textContent: counts })),
           el("label", { className: "switch" }, input, el("span")));
       })
@@ -102,18 +141,19 @@
 
     /* scam & fraud guards */
     $("guards").replaceChildren(
-      ...Object.entries(BLK.GUARD_INFO).map(([key, info]) => {
-        const input = el("input", { type: "checkbox", checked: guards[key], ariaLabel: info.title });
+      ...Object.keys(BLK.GUARD_INFO).map((key) => {
+        const title = BLK.tt("GUARD_INFO", key, "title");
+        const input = el("input", { type: "checkbox", checked: guards[key], ariaLabel: title });
         input.addEventListener("change", () => BLK.setGuard(key, input.checked));
         return el("div", { className: "list-row" },
-          el("div", {}, el("b", { textContent: info.title }), el("div", { className: "muted small", textContent: info.desc })),
+          el("div", {}, el("b", { textContent: title }), el("div", { className: "muted small", textContent: BLK.tt("GUARD_INFO", key, "desc") })),
           el("label", { className: "switch" }, input, el("span")));
       })
     );
     $("trustedEmpty").hidden = trusted.length > 0;
     $("trusted").replaceChildren(
       ...trusted.map((d) =>
-        chip(d, "Remove", async () => {
+        chip(d, BLK.t("options.remove", "Remove"), async () => {
           const s = await BLK.getSettings();
           await api.storage.sync.set({ trusted: s.trusted.filter((x) => x !== d) });
         })
@@ -125,10 +165,10 @@
     $("networksEmpty").hidden = netEntries.length > 0;
     $("networks").replaceChildren(
       ...netEntries.slice(0, 200).map(([d, v]) => {
-        const status = v.ignored ? "allowed by you" : v.blocked ? "blocked everywhere" : `seen on ${v.sites.length} of ${3} sites`;
+        const status = v.ignored ? BLK.t("options.net_allowed", "allowed by you") : v.blocked ? BLK.t("options.net_blocked", "blocked everywhere") : BLK.t("options.net_seen", "seen on {n} of {total} sites", { n: v.sites.length, total: 3 });
         const btn = el("button", {
           className: "btn",
-          textContent: v.blocked && !v.ignored ? "Allow" : v.ignored ? "Block" : "Forget",
+          textContent: v.blocked && !v.ignored ? BLK.t("options.allow", "Allow") : v.ignored ? BLK.t("options.block", "Block") : BLK.t("options.forget", "Forget"),
           onclick: async () => {
             const n = await BLK.getLocal("learnedNetworks", {});
             if (!n[d]) return;
@@ -142,11 +182,13 @@
       })
     );
     const nSites = Object.keys(learnedSites).length;
-    $("learnedSitesCount").textContent = `${nSites} ${nSites === 1 ? "site" : "sites"}`;
-    $("smartOffInfo").textContent = smartOff.length ? "Smart detection is off on:" : "";
+    $("learnedSitesCount").textContent = nSites === 1
+      ? BLK.t("options.learned_sites_one", "{n} site with remembered ads.", { n: nSites })
+      : BLK.t("options.learned_sites_many", "{n} sites with remembered ads.", { n: nSites });
+    $("smartOffInfo").textContent = smartOff.length ? BLK.t("options.smart_off_on", "Smart detection is off on:") : "";
     $("smartOff").replaceChildren(
       ...smartOff.map((d) =>
-        chip(d, "Turn back on", async () => {
+        chip(d, BLK.t("options.turn_back_on", "Turn back on"), async () => {
           const s = await BLK.getSettings();
           await api.storage.sync.set({ smartOff: s.smartOff.filter((x) => x !== d) });
         })
@@ -156,7 +198,7 @@
     $("allowEmpty").hidden = allowlist.length > 0;
     $("allowlist").replaceChildren(
       ...allowlist.map((d) =>
-        chip(d, "Remove", async () => {
+        chip(d, BLK.t("options.remove", "Remove"), async () => {
           await BLK.setSiteAllowed(d, false);
           await apply();
         })
@@ -166,7 +208,7 @@
     $("blockEmpty").hidden = blocklist.length > 0;
     $("blocklist").replaceChildren(
       ...blocklist.map((d) =>
-        chip(d, "Unblock", async () => {
+        chip(d, BLK.t("options.unblock", "Unblock"), async () => {
           await BLK.setSiteBlocked(d, false);
           await apply();
         })
@@ -185,7 +227,7 @@
                 el("code", { textContent: sel }),
                 el("button", {
                   className: "btn",
-                  textContent: "Show again",
+                  textContent: BLK.t("options.show_again", "Show again"),
                   onclick: async () => {
                     const h = await BLK.getLocal("hidden", {});
                     h[site] = (h[site] || []).filter((s) => s !== sel);
@@ -201,10 +243,10 @@
     );
 
     $("stats").replaceChildren(
-      ...Object.entries(BLK.STAT_LABELS).map(([k, label]) =>
-        el("li", {}, el("span", { textContent: label }), el("b", { textContent: (stats[k] || 0).toLocaleString() }))
+      ...Object.keys(BLK.STAT_LABELS).map((k) =>
+        el("li", {}, el("span", { textContent: BLK.tt("STAT_LABELS", k) }), el("b", { textContent: (stats[k] || 0).toLocaleString() }))
       ),
-      el("li", {}, el("b", { textContent: "Total" }), el("b", { textContent: (stats.total || 0).toLocaleString() }))
+      el("li", {}, el("b", { textContent: BLK.t("options.total", "Total") }), el("b", { textContent: (stats.total || 0).toLocaleString() }))
     );
   }
 
@@ -213,7 +255,7 @@
     .then((m) => {
       meta = m;
       const ok = m.sources.filter((s) => s.ok).map((s) => s.title);
-      $("listsUpdated").textContent = `Lists compiled ${new Date(m.generated).toLocaleString()} from: ${ok.join(", ")}.`;
+      $("listsUpdated").textContent = BLK.t("options.lists_compiled", "Lists compiled {date} from: {sources}.", { date: new Date(m.generated).toLocaleString(), sources: ok.join(", ") });
       render();
     })
     .catch(() => {});
@@ -222,7 +264,7 @@
     await api.storage.sync.set({ smart: e.target.checked });
   });
   $("forget").addEventListener("click", async () => {
-    if (!confirm("Forget everything smart detection has learned?")) return;
+    if (!confirm(BLK.t("options.forget_confirm", "Forget everything smart detection has learned?"))) return;
     await api.storage.local.set({ learnedSites: {}, learnedNetworks: {} });
     await api.storage.sync.set({ smartOff: [] });
   });
@@ -234,7 +276,7 @@
       $(errorId).textContent = "";
       const domain = BLK.normalizeDomain($(inputId).value);
       if (!domain) {
-        $(errorId).textContent = "That doesn't look like a website address.";
+        $(errorId).textContent = BLK.t("options.bad_domain", "That doesn't look like a website address.");
         return;
       }
       try {
@@ -261,18 +303,19 @@
   });
 
   $("reset").addEventListener("click", async () => {
-    if (!confirm("Reset all NanaGuard statistics?")) return;
+    if (!confirm(BLK.t("options.reset_confirm", "Reset all NanaGuard statistics?"))) return;
     await api.storage.local.set({ stats: {} });
   });
 
   /* ---------- backup ---------- */
   $("export").addEventListener("click", async () => {
-    const { allowlist, blocklist, lists, smart, smartOff, guards, trusted } = await BLK.getSettings();
+    const { allowlist, blocklist, lists, smart, smartOff, guards, trusted, uiLang, factLang, factSearchLang } = await BLK.getSettings();
     const hidden = await BLK.getLocal("hidden", {});
     const learnedSites = await BLK.getLocal("learnedSites", {});
     const learnedNetworks = await BLK.getLocal("learnedNetworks", {});
     // Password fingerprints are deliberately NOT exported.
-    const data = { nanaguard: 1, allowlist, blocklist, lists, smart, smartOff, guards, trusted, hidden, learnedSites, learnedNetworks };
+    const data = { nanaguard: 1, allowlist, blocklist, lists, smart, smartOff, guards, trusted, uiLang, factLang, factSearchLang,
+      hidden, learnedSites, learnedNetworks };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     const a = el("a", { href: URL.createObjectURL(blob), download: "nanaguard-backup.json" });
     a.click();
@@ -312,16 +355,27 @@
         allowlist: clean(data.allowlist), blocklist: clean(data.blocklist), smartOff: clean(data.smartOff),
         trusted: clean(data.trusted), lists, smart: data.smart !== false,
         guards: Object.fromEntries(Object.keys(BLK.GUARD_INFO).map((g) => [g, !data.guards || data.guards[g] !== false])),
+        uiLang: BLK.UI_LANGS.includes(data.uiLang) ? data.uiLang : "",
+        factLang: BLK.FACT_LANGS.includes(data.factLang) ? data.factLang : "",
+        factSearchLang: BLK.FACT_LANGS.includes(data.factSearchLang) ? data.factSearchLang : "",
       });
       await api.storage.local.set({ hidden: selectorMap(data.hidden), learnedSites: selectorMap(data.learnedSites), learnedNetworks: networks });
       await apply();
-      $("backupMsg").textContent = "Backup loaded.";
+      $("backupMsg").textContent = BLK.t("options.backup_loaded", "Backup loaded.");
     } catch (err) {
-      $("backupMsg").textContent = `Couldn't load that file (${err.message}).`;
+      $("backupMsg").textContent = BLK.t("options.backup_failed", "Couldn't load that file ({error}).", { error: err.message });
     }
   });
 
   let t;
-  api.storage.onChanged.addListener(() => { clearTimeout(t); t = setTimeout(render, 250); });
+  api.storage.onChanged.addListener((changes, area) => {
+    // New interface language: reload so every text (including the static page) switches.
+    if (area === "local" && changes.i18n) {
+      const was = changes.i18n.oldValue && changes.i18n.oldValue.lang;
+      if (changes.i18n.newValue && changes.i18n.newValue.lang !== was) location.reload();
+    }
+    clearTimeout(t);
+    t = setTimeout(render, 250);
+  });
   render();
 })();

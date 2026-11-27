@@ -25,6 +25,8 @@
   }
 
   async function run() {
+    await BLK.loadI18n();
+    BLK.localize();
     const lensImage = await takeLensImage();
     if (typeof lensImage !== "string" || !lensImage.startsWith("data:image/")) {
       showFallback();

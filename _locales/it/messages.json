@@ -1,0 +1,10 @@
+{
+  "extName": {
+    "message": "NanaGuard – Blocco di pubblicità, popup e truffe",
+    "description": "Extension name"
+  },
+  "extDescription": {
+    "message": "Blocca pubblicità e banner, popup, notifiche spam, falsi avvisi di virus e altri trucchi truffaldini del browser.",
+    "description": "Extension description"
+  }
+}

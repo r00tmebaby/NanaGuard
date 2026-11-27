@@ -55,8 +55,17 @@ var BlkYouTube = (() => {
 
   const AI_LABEL = /(Altered or synthetic content|Sound or visuals were significantly edited or digitally generated)/i;
   const hasAiLabel = (text) => AI_LABEL.test(text || "");
-  const AI_LABEL_REASON = "YouTube's label: \"Altered or synthetic content\"";
-  const scamTarget = (kind) => kind === "health" ? "a miracle cure or health product" : kind === "invest" ? "an investment platform" : "a crypto giveaway";
+  const aiLabelReason = () => BLK.t("yt.reason_label", "YouTube's label: \"Altered or synthetic content\"");
+  const scamReason = (kind, celeb) => kind === "health"
+    ? BLK.t("yt.reason_scam_health", "Uses {celeb}'s name to promote a miracle cure or health product", { celeb })
+    : kind === "invest"
+      ? BLK.t("yt.reason_scam_invest", "Uses {celeb}'s name to promote an investment platform", { celeb })
+      : BLK.t("yt.reason_scam_crypto", "Uses {celeb}'s name to promote a crypto giveaway", { celeb });
+  const scamLine = (kind, celeb) => kind === "health"
+    ? BLK.t("yt.scam_line_health", "It uses {celeb}'s name to promote a miracle cure or health product. Scammers use AI to fake famous people's faces and voices.", { celeb })
+    : kind === "invest"
+      ? BLK.t("yt.scam_line_invest", "It uses {celeb}'s name to promote an investment platform. Scammers use AI to fake famous people's faces and voices.", { celeb })
+      : BLK.t("yt.scam_line_crypto", "It uses {celeb}'s name to promote a crypto giveaway. Scammers use AI to fake famous people's faces and voices.", { celeb });
 
   /* Heuristic AI signals from ai-signals.js (optional global; the chip and banner degrade to
    * "no signal" if it failed to load). forcedLabel = YouTube's own label was found in page data. */
@@ -78,7 +87,7 @@ var BlkYouTube = (() => {
         }
       } catch { /* signals are best-effort */ }
     }
-    if (forcedLabel && res.level !== "labelled") res = { level: "labelled", reasons: [AI_LABEL_REASON], tools: [] };
+    if (forcedLabel && res.level !== "labelled") res = { level: "labelled", reasons: [aiLabelReason()], tools: [] };
     return res;
   }
 
@@ -120,28 +129,29 @@ var BlkYouTube = (() => {
   }
 
   /* ---------------- status chip + fact-check buttons under the title ---------------- */
-  const STATUS = {
-    labelled: { cls: "ai", text: "AI-generated (labelled)" },
-    likely: { cls: "ai", text: "Likely AI-generated" },
-    possible: { cls: "maybe", text: "Possibly AI" },
-    scam: { cls: "scam", text: "Possible deepfake scam" },
-  };
+  const status = () => ({
+    labelled: { cls: "ai", text: BLK.t("yt.status_labelled", "AI-generated (labelled)") },
+    likely: { cls: "ai", text: BLK.t("yt.status_likely", "Likely AI-generated") },
+    possible: { cls: "maybe", text: BLK.t("yt.status_possible", "Possibly AI") },
+    scam: { cls: "scam", text: BLK.t("yt.status_scam", "Possible deepfake scam") },
+  });
   let statusEl = null;
+  let factSettings = {}; // language choices for the fact-check buttons (set in start())
   // Any kind not in STATUS (none, hidden, ...) hides the chip. Only real signals are shown.
   function setStatus(kind, reasons = []) {
     if (!statusEl) return;
-    const s = STATUS[kind];
+    const s = status()[kind];
     if (!s) {
       statusEl.hidden = true;
       statusEl.textContent = "";
       statusEl.title = "";
       return;
     }
-    const why = reasons.length ? reasons.join(" · ") : "NanaGuard found an AI signal";
+    const why = reasons.length ? reasons.join(" · ") : BLK.t("yt.status_fallback", "NanaGuard found an AI signal");
     statusEl.hidden = false;
     statusEl.className = "s " + s.cls;
     statusEl.textContent = s.text;
-    statusEl.title = why + " (based on the video's title, description, labels, viewer comments and watermark text — not a pixel scan)";
+    statusEl.title = BLK.t("yt.status_title", "{reasons} (based on the video's title, description, labels, viewer comments and watermark text — not a pixel scan)", { reasons: why });
   }
 
   function addCheckButton(showStatus = false, showButtons = true) {
@@ -174,19 +184,27 @@ var BlkYouTube = (() => {
     if (!showButtons) { host.append(el); return; }
     const lead = document.createElement("span");
     lead.className = "t";
-    lead.textContent = "Check facts:";
+    lead.textContent = BLK.t("yt.check_facts", "Check facts:");
     row.append(lead);
     for (const engine of Object.keys(BLK.FACT_ENGINES)) {
       const b = document.createElement("button");
-      b.append(BLK.icon(engine, 15), BLK.FACT_SHORT[engine]);
-      b.title = `${BLK.FACT_ENGINES[engine]} about this video (opens a new tab)`;
+      b.append(BLK.icon(engine, 15), BLK.tt("FACT_SHORT", engine));
+      b.title = BLK.t("yt.check_title", "{engine} about this video (opens a new tab)", { engine: BLK.tt("FACT_ENGINES", engine) });
       b.addEventListener("click", (e) => {
         e.preventDefault();
         e.stopPropagation();
         const { title } = context();
-        // Open directly from the click: works even if the extension was reloaded while this
-        // tab stayed open (messaging to the background would silently fail then).
-        window.open(BLK.factCheckUrl(engine, title, location.href), "_blank", "noopener");
+        const langs = BLK.factLangs(factSettings);
+        const direct = () => window.open(BLK.factCheckUrl(engine, title, location.href, langs), "_blank", "noopener");
+        // A search language may need the translator, which runs in NanaGuard's own check page:
+        // the background opens it. Otherwise open directly from the click, which also works if the
+        // extension was reloaded while this tab stayed open (messaging would silently fail then).
+        if (engine !== "chatgpt" && langs.search && api.runtime && api.runtime.id) {
+          api.runtime.sendMessage({ cmd: "factCheck", engine, text: title, url: location.href })
+            .then((res) => { if (!res || !res.ok || !res.value) direct(); }, direct);
+          return;
+        }
+        direct();
       });
       row.append(b);
     }
@@ -195,13 +213,13 @@ var BlkYouTube = (() => {
     sep.className = "sep";
     row.append(sep);
     const find = document.createElement("button");
-    const findLabel = document.createTextNode("Find source");
+    const findLabel = document.createTextNode(BLK.t("yt.find_source", "Find source"));
     find.append(BLK.icon("google", 15), findLabel);
-    find.title = "Search Google Lens for where this video frame comes from (opens a new tab)";
+    find.title = BLK.t("yt.find_source_title", "Search Google Lens for where this video frame comes from (opens a new tab)");
     let busy = false;
     const say = (text, ms = 2500) => {
       findLabel.textContent = text;
-      setTimeout(() => { findLabel.textContent = "Find source"; }, ms);
+      setTimeout(() => { findLabel.textContent = BLK.t("yt.find_source", "Find source"); }, ms);
     };
     // Fallback that needs neither a screenshot nor the extension background: YouTube's own
     // thumbnail of this video, sent to Lens by URL. Used when capture is impossible (extension
@@ -218,7 +236,7 @@ var BlkYouTube = (() => {
       e.stopPropagation();
       if (busy) return;
       busy = true;
-      say("Opening Google Lens…", 4000);
+      say(BLK.t("yt.opening_lens", "Opening Google Lens…"), 4000);
       let opened = false;
       try {
         const v = document.querySelector("#movie_player video");
@@ -233,7 +251,7 @@ var BlkYouTube = (() => {
           opened = !!(res && res.ok && res.value);
         }
       } catch { /* extension reloaded, capture refused, or frame unavailable */ }
-      if (!opened && !openThumbnailInLens()) say("Couldn't open Google Lens");
+      if (!opened && !openThumbnailInLens()) say(BLK.t("yt.lens_failed", "Couldn't open Google Lens"));
       busy = false;
     });
     row.append(find);
@@ -243,6 +261,7 @@ var BlkYouTube = (() => {
   /* ---------------- start ---------------- */
   function start({ settings, warn, send, message }) {
     const { guards } = settings;
+    factSettings = settings;
     const done = new Set();
     const memo = new Map();
     const initCache = new Map();
@@ -303,7 +322,7 @@ var BlkYouTube = (() => {
       const verdict = assess(ctx);
       const initLabel = initCache.has(id) ? initCache.get(id) : (initCache.set(id, initialDataHasLabel(id)), initCache.get(id));
       const ai = analyzeAi(ctx, labelled.has(id) || hasAiLabel(ctx.labelText) || initLabel, watermarkText);
-      if (verdict.flagged) setStatus("scam", [`Uses ${verdict.celeb}'s name to promote ${scamTarget(verdict.kind)}`]);
+      if (verdict.flagged) setStatus("scam", [scamReason(verdict.kind, verdict.celeb)]);
       else setStatus(ai.level, ai.reasons);
 
       if (!done.has("scam:" + id)) {
@@ -312,18 +331,17 @@ var BlkYouTube = (() => {
           done.add("scam:" + id);
           send("deepfake");
           pause();
-          const what = scamTarget(a.kind);
           warn({
             id: "deepfake-" + id,
             level: "high",
-            title: "This video looks like a deepfake scam",
+            title: BLK.t("yt.deepfake_title", "This video looks like a deepfake scam"),
             lines: [
-              `It uses ${a.celeb}'s name to promote ${what}. Scammers use AI to fake famous people's faces and voices.`,
-              "Real celebrities never ask you to send money or crypto, scan a QR code, or buy a cure. Don't send anything.",
+              scamLine(a.kind, a.celeb),
+              BLK.t("yt.deepfake_advice", "Real celebrities never ask you to send money or crypto, scan a QR code, or buy a cure. Don't send anything."),
             ],
             actions: [
-              { label: "Leave this video", kind: "primary", run: () => history.back() },
-              { label: "Watch anyway", kind: "secondary" },
+              { label: BLK.t("yt.leave_video", "Leave this video"), kind: "primary", run: () => history.back() },
+              { label: BLK.t("yt.watch_anyway", "Watch anyway"), kind: "secondary" },
             ],
           });
         }
@@ -332,15 +350,15 @@ var BlkYouTube = (() => {
         done.add("ai:" + id);
         send("ailabel");
         const isLabel = ai.level === "labelled";
-        const why = ai.reasons.length ? ai.reasons.join(". ").replace(/\.+$/, "") + "." : "Signals in the title or description point to AI generation.";
+        const why = ai.reasons.length ? ai.reasons.join(". ").replace(/\.+$/, "") + "." : BLK.t("yt.ai_why_fallback", "Signals in the title or description point to AI generation.");
         warn({
           id: "ai-" + id,
           level: "medium",
-          title: isLabel ? "The creator says this video is AI-generated or altered" : "This video is probably AI-generated",
+          title: isLabel ? BLK.t("yt.ai_title_labelled", "The creator says this video is AI-generated or altered") : BLK.t("yt.ai_title_likely", "This video is probably AI-generated"),
           lines: isLabel
-            ? ["YouTube's label: \"Altered or synthetic content\". What you see or hear may not be real."]
-            : [why, "What you see or hear may not be real."],
-          actions: [{ label: "OK", kind: "secondary" }],
+            ? [BLK.t("yt.ai_line_labelled", "YouTube's label: \"Altered or synthetic content\". What you see or hear may not be real.")]
+            : [why, BLK.t("yt.ai_line_unreal", "What you see or hear may not be real.")],
+          actions: [{ label: BLK.t("yt.ok", "OK"), kind: "secondary" }],
         });
       }
     };

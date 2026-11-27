@@ -1,0 +1,10 @@
+{
+  "extName": {
+    "message": "NanaGuard – Bloqueador de anuncios, ventanas emergentes y estafas",
+    "description": "Extension name"
+  },
+  "extDescription": {
+    "message": "Bloquea anuncios, banners, ventanas emergentes, spam de notificaciones, falsas alertas de virus y otras estafas del navegador.",
+    "description": "Extension description"
+  }
+}

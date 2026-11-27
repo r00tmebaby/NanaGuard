@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title data-i18n="check.page_title">Checking facts - NanaGuard</title>
+  <link rel="stylesheet" href="../ui/ui.css">
+  <style>
+    body { display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 16px; }
+    .card { max-width: 460px; width: 100%; text-align: center; padding: 24px; }
+    .card p { margin: 0; line-height: 1.5; }
+    .card p + p, .card p + .btns { margin-top: 14px; }
+    .btns { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+    .btns .btn { font-size: 15px; padding: 10px 14px; }
+    progress { width: 100%; margin-top: 14px; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <p id="status" data-i18n="check.status">Getting your search ready...</p>
+    <div id="ask" hidden>
+      <p id="askText"></p>
+      <div class="btns">
+        <button id="download" class="btn primary" data-i18n="check.download">Download and search</button>
+        <button id="skip" class="btn" data-i18n="check.skip">Search without translating</button>
+      </div>
+      <progress id="progress" max="1" value="0" hidden></progress>
+    </div>
+  </main>
+  <script src="../common.js"></script>
+  <script src="check.js"></script>
+</body>
+</html>

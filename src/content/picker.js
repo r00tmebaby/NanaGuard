@@ -30,15 +30,20 @@
     </style>
     <div class="box"></div>
     <div class="bar">
-      <span class="msg">Click the ad or banner you want gone</span>
-      <button data-act="larger" hidden>Select larger</button>
-      <button data-act="hide" class="primary" hidden>Hide it</button>
-      <button data-act="cancel">Cancel</button>
+      <span class="msg"></span>
+      <button data-act="larger" hidden></button>
+      <button data-act="hide" class="primary" hidden></button>
+      <button data-act="cancel"></button>
     </div>`;
   const box = root.querySelector(".box");
   const bar = root.querySelector(".bar");
   const msg = root.querySelector(".msg");
   const btn = (a) => root.querySelector(`[data-act="${a}"]`);
+  // Texts set as text (never as HTML), so a translation can't break the markup.
+  msg.textContent = BLK.t("picker.hint", "Click the ad or banner you want gone");
+  btn("larger").textContent = BLK.t("picker.select_larger", "Select larger");
+  btn("hide").textContent = BLK.t("picker.hide_it", "Hide it");
+  btn("cancel").textContent = BLK.t("picker.cancel", "Cancel");
   document.documentElement.appendChild(host);
 
   let hovered = null;
@@ -110,7 +115,7 @@
     chosen = el;
     show(el);
     const r = el.getBoundingClientRect();
-    msg.textContent = `Hide this ${Math.round(r.width)}×${Math.round(r.height)} area on every visit?`;
+    msg.textContent = BLK.t("picker.confirm_area", "Hide this {width}×{height} area on every visit?", { width: Math.round(r.width), height: Math.round(r.height) });
     btn("hide").hidden = false;
     btn("larger").hidden = false;
     btn("larger").disabled = !el.parentElement || el.parentElement === document.body;
@@ -140,7 +145,7 @@
       if (chosen) {
         chosen = null;
         btn("hide").hidden = btn("larger").hidden = true;
-        msg.textContent = "Click the ad or banner you want gone";
+        msg.textContent = BLK.t("picker.hint", "Click the ad or banner you want gone");
       } else stop();
     }
   };
@@ -173,12 +178,12 @@
       chosen.style.setProperty("display", "none", "important");
       box.style.display = "none";
       btn("hide").hidden = btn("larger").hidden = true;
-      btn("cancel").textContent = "Done";
+      btn("cancel").textContent = BLK.t("picker.done", "Done");
       try {
         const res = await api.runtime.sendMessage({ cmd: "hideElement", selector });
-        msg.textContent = res?.ok ? "Hidden. You can undo this in NanaGuard settings." : "Couldn't save – try again.";
+        msg.textContent = res?.ok ? BLK.t("picker.hidden", "Hidden. You can undo this in NanaGuard settings.") : BLK.t("picker.save_failed", "Couldn't save – try again.");
       } catch {
-        msg.textContent = "Couldn't save – try again.";
+        msg.textContent = BLK.t("picker.save_failed", "Couldn't save – try again.");
       }
       setTimeout(stop, 2500);
     }

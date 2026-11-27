@@ -1,0 +1,10 @@
+{
+  "extName": {
+    "message": "NanaGuard – Блокировщик рекламы, всплывающих окон и мошенников",
+    "description": "Extension name"
+  },
+  "extDescription": {
+    "message": "Блокирует рекламу и баннеры, всплывающие окна, спам-уведомления, фальшивые вирусные предупреждения и другие уловки мошенников.",
+    "description": "Extension description"
+  }
+}
