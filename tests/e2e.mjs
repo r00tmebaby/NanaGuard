@@ -559,24 +559,49 @@ try {
   check("fact check languages: fact-checkers filtered to the search language", fcLang[2].endsWith(";hl=en"), fcLang[2]);
   check("fact check languages: Google adds 'fact check' in the story's language", decodeURIComponent(fcLang[3]).includes("проверка на факти") && fcLang[3].endsWith("&hl=bg"));
 
-  // With a search language the check goes through NanaGuard's translation page. Headless Chrome has no
-  // language pack yet, so the page asks to download one; "Search without translating" still searches.
-  await worker.evaluate(() => chrome.storage.sync.set({ factSearchLang: "en" }));
-  await worker.evaluate(() => nanaguard.openCheck("google", "Бургас е най-хубавият град в България", null, null));
-  const chk = await waitFor(async () => (await browser.pages()).find((p) => /\/src\/check\/check\.html|google\.[a-z.]+\/(search|sorry)|consent\.google/.test(p.url())), 8000);
-  let searched = "";
-  if (chk) {
-    await sleep(1000);
-    const asking = await chk.evaluate(() => { const a = document.getElementById("ask"); return !!a && !a.hidden; }).catch(() => false);
-    if (asking) {
-      const req = chk.waitForRequest((r) => r.url().startsWith("https://www.google.com/search"), { timeout: 8000 }).then((r) => r.url(), () => "");
-      await chk.click("#skip");
-      searched = await req;
-    } else searched = chk.url();
-    await chk.close().catch(() => {});
+  // Which checks need translating: every search uses the answer language, except News/fact-checkers
+  // when a separate search language is chosen. ChatGPT is told the language instead.
+  const needs = await worker.evaluate(() => {
+    const en = "Mobile DJ 101: Here's What You Need to Do to Start Making Big Money";
+    const bg = "Бургас е най-хубавият град в България";
+    return [BLK.needsTranslation("google", en, { answer: "bg", search: "" }), BLK.needsTranslation("news", en, { answer: "bg", search: "" }),
+      BLK.needsTranslation("factcheck", en, { answer: "bg", search: "" }), BLK.needsTranslation("chatgpt", en, { answer: "bg", search: "" }),
+      BLK.needsTranslation("google", bg, { answer: "bg", search: "" }), BLK.needsTranslation("factcheck", en, { answer: "bg", search: "en" }),
+      BLK.needsTranslation("google", en, { answer: "bg", search: "en" }), BLK.needsTranslation("factcheck", en, { answer: "bg", search: "text" }),
+      BLK.needsTranslation("google", en, { answer: "bg", search: "text" })];
+  });
+  check("fact check languages: English story with Bulgarian answers → Google, News and fact-checkers translate it (unless 'language of the text')",
+    JSON.stringify(needs) === JSON.stringify([true, true, true, false, false, false, true, false, true]), JSON.stringify(needs));
+  // Three-word claims carry no small words or special letters: the browser's own detector (CLD) helps.
+  const cld = await worker.evaluate(async () => [await BLK.detectLang("Impfstoffe verursachen Autismus"),
+    await BLK.detectLang("Vaccins veroorzaken autisme"), await BLK.detectLang("Бургас е най-хубавият град в България")]);
+  check("fact check languages: short claims recognised with the browser's language detector", JSON.stringify(cld) === '["de","nl","bg"]', JSON.stringify(cld));
+  const kw = await worker.evaluate(() => BLK.keywords("TrueSource Trusted Artifacts е портфолио от продукти на Broadcom", 5, false, "bg"));
+  check("fact check languages: small words of the text's language are left out of the search", kw === "TrueSource Trusted Artifacts портфолио продукти", kw);
+
+  // In the browser: such checks go through NanaGuard's translation page. Headless Chrome has no language
+  // pack yet, so the page asks to download one; "Search without translating" still searches.
+  await worker.evaluate(() => chrome.storage.sync.set({ factLang: "bg" }));
+  const viaCheck = [];
+  for (const [engine, target] of [["google", "https://www.google.com/search"], ["news", "https://news.google.com/search"], ["factcheck", "https://toolbox.google.com/factcheck/"]]) {
+    await worker.evaluate((e) => nanaguard.openCheck(e, "Mobile DJ 101: Here's What You Need to Do to Start Making Big Money", null, null), engine);
+    const chk = await waitFor(async () => (await browser.pages()).find((p) => p.url().includes("/src/check/check.html")), 8000);
+    let searched = "";
+    if (chk) {
+      await sleep(1000);
+      const asking = await chk.evaluate(() => { const a = document.getElementById("ask"); return !!a && !a.hidden; }).catch(() => false);
+      if (asking) {
+        const req = chk.waitForRequest((r) => r.url().startsWith(target), { timeout: 8000 }).then((r) => r.url(), () => "");
+        await chk.click("#skip");
+        searched = await req;
+      } else searched = chk.url();
+      await chk.close().catch(() => {});
+    }
+    viaCheck.push(searched.startsWith(target) ? engine : `${engine}: ${searched.slice(0, 60) || "no check page"}`);
   }
-  await worker.evaluate(() => chrome.storage.sync.set({ factSearchLang: "" }));
-  check("fact check languages: search language goes through the translation page, then searches", /google\.[a-z.]+\/(search|sorry)|consent\.google/.test(searched), searched.slice(0, 90));
+  await worker.evaluate(() => chrome.storage.sync.set({ factLang: "" }));
+  check("fact check languages: Google, News and fact-checkers go through the translation page, then search",
+    viaCheck.join(",") === "google,news,factcheck", viaCheck.join(" | "));
 
   // Real YouTube: the "Check facts" button appears under the title (needs internet).
   const ytp = await browser.newPage();

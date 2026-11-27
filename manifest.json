@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "__MSG_extName__",
   "short_name": "NanaGuard",
-  "version": "2.9.0",
+  "version": "2.9.1",
   "description": "__MSG_extDescription__",
   "author": "r00tmebaby",
   "homepage_url": "https://github.com/r00tmebaby/NanaGuard",

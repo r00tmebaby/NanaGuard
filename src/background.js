@@ -529,9 +529,11 @@ async function openCheck(engine, text, pageUrl, tab) {
   const t = String(text || "").replace(/\s+/g, " ").trim().slice(0, 300);
   if (!(engine in BLK.FACT_ENGINES) || !t) return false;
   const langs = BLK.factLangs(await BLK.getSettings());
-  // With a search language the text may need translating first. Chrome's built-in translator only
-  // runs in pages, so the check page translates and then opens the search. ChatGPT needs no translation.
-  const url = engine !== "chatgpt" && langs.search
+  // Text in another language than the search needs (BLK.factTarget) is translated first. Chrome's
+  // built-in translator only runs in pages, so the check page translates and then opens the search.
+  // An unsure guess asks the browser's detector before sending the text through the check page.
+  const target = BLK.factTarget(engine, langs);
+  const url = target && (await BLK.detectLang(t, langs.answer)) !== target
     ? api.runtime.getURL(`src/check/check.html?e=${engine}&q=${encodeURIComponent(t)}`)
     : BLK.factCheckUrl(engine, t, pageUrl, langs);
   const props = { url };

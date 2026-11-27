@@ -135,6 +135,13 @@ if (total > 30000) console.warn(`note: ${total} static rules exceed Chrome's gua
 // 4. Interface translations: every language file complete, placeholders intact, English reference current.
 for (const e of await validateI18n(ROOT)) fail(`i18n: ${e}`);
 
+// 5. Fact-check languages: language guessing, search words and every fact-check URL (tests/lang.mjs).
+try {
+  execFileSync(process.execPath, [path.join(ROOT, "tests/lang.mjs")], { stdio: "pipe", encoding: "utf8" });
+} catch (e) {
+  fail(`fact-check language tests failed:\n${String(e.stdout || e.message).split("\n").filter((l) => /FAIL|^\s{8}/.test(l)).slice(0, 15).join("\n")}`);
+}
+
 if (errors.length) {
   console.error(errors.slice(0, 50).join("\n"));
   console.error(`\n${errors.length} problem(s)`);

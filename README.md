@@ -67,7 +67,7 @@ On YouTube a chip under the video says *Likely AI-generated*, *AI-generated (lab
 
 **Checks facts**
 - **Check facts** in one click: right-click any text, use the buttons under YouTube videos, or open the toolbar popup. Choose **Other news sources** (is anyone else reporting it?), **Fact-checkers** (claims already reviewed by professionals), **ChatGPT** or **Google**, each opening in a new tab. Brand-new stories usually have no fact-check yet, so for news, "other sources" is the best first check.
-- **In any language:** choose the language answers come back in, and optionally a language to search sources in. NanaGuard then translates the story before searching (for example, a Bulgarian story checked against English fact-checkers). In Chrome the translation is done on your computer by Chrome's built-in translator, free and private; Firefox searches the text as it is.
+- **In your language:** every check uses the language you choose. A story in another language is translated first, so Google answers you in your language and News and fact-checkers search in it. Optionally search News and fact-checkers in a different language (for example, a Bulgarian story checked against English fact-checkers). In Chrome the translation is done on your computer by Chrome's built-in translator, free and private; Firefox searches the text as it is.
 
 **Speaks your language**: buttons, settings and warnings in English, Bulgarian, Dutch, French, German, Greek, Italian, Polish, Portuguese, Romanian, Russian, Spanish, Turkish and Ukrainian. It follows your browser's language, or pick one in **Settings → Language**.
 
@@ -127,6 +127,8 @@ npm run filters    # download & compile filter lists into rules/
 npm run check      # validate rules, files and translations
 npm run i18n       # after changing interface text: refresh src/i18n/en.json
 npm install && npm run test:e2e   # end-to-end checks in real Chrome
+npm run test:lang  # fact-check languages: ~670,000 checks, no browser (also part of npm run check)
+npm run test:translate  # real Chrome translator: every language into every other (visible window)
 npm run build      # store-ready zips in dist/
 ```
 

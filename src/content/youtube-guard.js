@@ -199,7 +199,7 @@ var BlkYouTube = (() => {
         // A search language may need the translator, which runs in NanaGuard's own check page:
         // the background opens it. Otherwise open directly from the click, which also works if the
         // extension was reloaded while this tab stayed open (messaging would silently fail then).
-        if (engine !== "chatgpt" && langs.search && api.runtime && api.runtime.id) {
+        if (BLK.needsTranslation(engine, title, langs) && api.runtime && api.runtime.id) {
           api.runtime.sendMessage({ cmd: "factCheck", engine, text: title, url: location.href })
             .then((res) => { if (!res || !res.ok || !res.value) direct(); }, direct);
           return;

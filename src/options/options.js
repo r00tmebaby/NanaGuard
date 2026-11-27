@@ -80,7 +80,8 @@
       option("", BLK.t("options.lang_auto", "Automatic: {lang}", { lang: bothNames(BLK.factLangs({ uiLang: s.uiLang }).answer) })),
       ...byName(BLK.FACT_LANGS).map((c) => option(c, bothNames(c))));
     $("factSearchLang").replaceChildren(
-      option("", BLK.t("options.fact_search_same", "The language of the text (no translation)")),
+      option("", BLK.t("options.fact_search_same", "Same as the answers")),
+      option("text", BLK.t("options.fact_search_text", "The language of the text (no translation)")),
       ...byName(BLK.FACT_LANGS).map((c) => option(c, bothNames(c))));
   }
   for (const id of ["uiLang", "factLang", "factSearchLang"]) {
@@ -357,7 +358,7 @@
         guards: Object.fromEntries(Object.keys(BLK.GUARD_INFO).map((g) => [g, !data.guards || data.guards[g] !== false])),
         uiLang: BLK.UI_LANGS.includes(data.uiLang) ? data.uiLang : "",
         factLang: BLK.FACT_LANGS.includes(data.factLang) ? data.factLang : "",
-        factSearchLang: BLK.FACT_LANGS.includes(data.factSearchLang) ? data.factSearchLang : "",
+        factSearchLang: BLK.validSearchLang(data.factSearchLang),
       });
       await api.storage.local.set({ hidden: selectorMap(data.hidden), learnedSites: selectorMap(data.learnedSites), learnedNetworks: networks });
       await apply();

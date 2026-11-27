@@ -132,12 +132,33 @@ var BLK = Object.freeze({
     return BLK.UI_LANGS.includes(browser) ? browser : "en";
   },
 
-  /** Fact-check languages: answer (ChatGPT reply, Google interface) and search ("" = the text's own). */
+  /** Fact-check languages: answer (ChatGPT and Google answer in it) and search, for News/fact-checkers:
+   *  "" = same as the answer, "text" = the text's own language (no translation), or a language code. */
   factLangs(settings = {}) {
     const ok = (c) => BLK.FACT_LANGS.includes(c);
     const browser = BLK.browserLang();
     const answer = ok(settings.factLang) ? settings.factLang : ok(settings.uiLang) ? settings.uiLang : ok(browser) ? browser : "en";
-    return { answer, search: ok(settings.factSearchLang) ? settings.factSearchLang : "" };
+    return { answer, search: BLK.validSearchLang(settings.factSearchLang) };
+  },
+
+  /** A stored "Search sources in" value, or "" if invalid. */
+  validSearchLang(v) {
+    return v === "text" || BLK.FACT_LANGS.includes(v) ? v : "";
+  },
+
+  /** Language a fact-check search must be in ("" = leave the text as it is): the answer language (Google
+   *  writes its AI answer in the language of the question), except News and fact-checkers when another
+   *  search language, or the text's own ("text"), is chosen. ChatGPT is told the languages in words. */
+  factTarget(engine, langs) {
+    if (engine === "chatgpt") return "";
+    if (engine === "google") return langs.answer;
+    return langs.search === "text" ? "" : langs.search || langs.answer;
+  },
+
+  /** True when the text probably isn't in factTarget's language, so the check page should translate it. */
+  needsTranslation(engine, text, langs) {
+    const target = BLK.factTarget(engine, langs);
+    return !!target && BLK.guessLang(text, langs.answer) !== target;
   },
 
   /** Language name, e.g. langName("bg", "en") → "Bulgarian", langName("bg", "bg") → "Български".
@@ -153,29 +174,100 @@ var BLK = Object.freeze({
     }
   },
 
-  /** Rough language of a text from its alphabet and special letters (when no language detector is
-   *  available). Only steers which Google News edition and fact-check filter a search uses. */
-  guessLang(text, fallback = "en") {
-    const s = String(text || "");
+  // Scratch space (BLK is frozen one level deep): cached word sets for guessLang.
+  CACHE: {},
+
+  // Languages guessLang scores by their small words and letters (Latin script).
+  LATIN_LANGS: Object.freeze(["en", "de", "nl", "fr", "es", "it", "pt", "ro", "pl", "cs", "sk", "tr", "hu", "sv", "da", "no", "fi",
+    "hr", "sl", "lt", "id", "vi"]),
+
+  /** Language of a text, guessed from its alphabet, special letters, word endings and small words
+   *  ("" when it can't tell). Used before Chrome's own detector runs, or when there is none.
+   *  fallback (the answer language) wins ties. scoresOut (tests) receives each language's score. */
+  guessLang(text, fallback = "en", scoresOut = null) {
+    // Hashtags, @names and links are often in another language than the text: leave them out.
+    const s = String(text || "").replace(/https?:\/\/\S+|[#@][\p{L}\p{N}_]+/gu, " ");
     const pick = (list, other) => (list.includes(fallback) ? fallback : other);
     const SCRIPTS = [[/[぀-ヿ]/, "ja"], [/[가-힯]/, "ko"], [/[一-鿿]/, "zh"], [/[฀-๿]/, "th"],
       [/[֐-׿]/, "he"], [/[؀-ۿ]/, "ar"], [/[ঀ-৿]/, "bn"], [/[஀-௿]/, "ta"],
       [/[ఀ-౿]/, "te"], [/[ಀ-೿]/, "kn"], [/[Ͱ-Ͽ]/, "el"]];
     for (const [re, code] of SCRIPTS) if (re.test(s)) return code;
-    if (/[ऀ-ॿ]/.test(s)) return pick(["mr"], "hi");
-    if (/[Ѐ-ӿ]/.test(s)) {
-      if (/[іїєґ]/i.test(s)) return "uk";
-      if (/[ыэё]/i.test(s)) return "ru";
-      if (/ъ/i.test(s)) return "bg";
-      return pick(["bg", "ru", "uk"], "ru");
+    const words = s.toLowerCase().split(/[^\p{L}\p{M}]+/u).filter(Boolean);
+    const scores = {};
+    const add = (code, n) => { scores[code] = (scores[code] || 0) + n; };
+    // Small words count by how distinctive they are: one only Spanish uses weighs 3, one five languages share 0.6.
+    const countWords = (codes) => {
+      const sets = codes.map((code) => (BLK.CACHE["w:" + code] ||= new Set((BLK.FILLER_WORDS[code] || "").split(" ").filter(Boolean))));
+      for (const w of words) {
+        const hits = codes.filter((code, i) => sets[i].has(w));
+        for (const code of hits) add(code, 3 / hits.length);
+      }
+    };
+    const best = () => {
+      if (scoresOut) Object.assign(scoresOut, scores);
+      let top = 0;
+      let winners = [];
+      for (const [code, n] of Object.entries(scores)) {
+        if (n > top) { top = n; winners = [code]; } else if (n === top && n > 0) winners.push(code);
+      }
+      return !top ? "" : winners.includes(fallback) ? fallback : winners[0];
+    };
+    if (/[ऀ-ॿ]/.test(s)) {
+      countWords(["hi", "mr"]);
+      return best() || pick(["mr"], "hi");
     }
-    const LATIN = [[/[ơưđạảấầẩẫậắằẳẵặẹẻẽếềểễệỉịọỏốồổỗộớờởỡợụủứừửữựỳỵỷỹ]/i, "vi"], [/[ğı]/, "tr"], [/[ąęłśźż]/i, "pl"],
-      [/[ășțşţ]/i, "ro"], [/[ěřů]/i, "cs"], [/[ľĺŕ]/i, "sk"], [/[őű]/i, "hu"], [/[ėįųū]/i, "lt"], [/[ćđ]/i, "hr"],
-      [/[ñ¿¡]/i, "es"], [/[ãõ]/i, "pt"], [/[åæø]/i, () => pick(["da", "no", "sv"], "sv")], [/[ßü]/i, "de"],
-      [/[äö]/i, () => pick(["de", "fi", "sv"], "de")], [/[çèêëàùûœ]/i, "fr"], [/[ìò]/i, "it"],
-      [/[čšž]/i, () => pick(["cs", "sk", "sl", "hr", "lt"], "cs")], [/[áéíóú]/i, () => pick(["es", "pt", "it", "fr", "hu", "cs", "sk"], "es")]];
-    for (const [re, code] of LATIN) if (re.test(s)) return typeof code === "function" ? code() : code;
-    return pick(["id", "nl"], "en"); // plain ASCII
+    if (/[Ѐ-ӿ]/.test(s)) {
+      const n = (re) => (s.match(re) || []).length;
+      add("uk", 4 * n(/[іїєґ]/gi));
+      add("ru", 4 * n(/[ыэё]/gi));
+      for (const w of words) {
+        if (w.length > 3 && /(ът|ят|ата|ото|ите|ето|ият|ията|ват)$/.test(w)) add("bg", 2);
+        if (w.length > 5 && /(та|то|те)$/.test(w)) add("bg", 1);
+        if (w.length > 3 && /(ння|ться|ють|ий|ої|ів|ив|ала|ути)$/.test(w)) add("uk", 1);
+        if (w.length > 3 && /(ый|ой|ая|ое|ые|ого|его|ему|ют|ут|ние|ется|ются|ает|яет|ил)$/.test(w)) add("ru", 1);
+      }
+      countWords(["bg", "ru", "uk"]);
+      return best() || pick(["bg", "ru", "uk"], ""); // no evidence: unsure rather than "Russian"
+    }
+    // Latin script: letters that point to a language (weights), then each language's small words.
+    const HINTS = [
+      [/[ơưđạảấầẩẫậắằẳẵặẹẻẽếềểễệỉịọỏốồổỗộớờởỡợụủứừửữựỳỵỷỹ]/gi, { vi: 10 }], [/[ğı]/g, { tr: 5 }], [/ş/gi, { tr: 3, ro: 2 }],
+      [/[ășțţ]/gi, { ro: 5 }], [/[łśźż]/gi, { pl: 5 }], [/cz|prz|ów(?![\p{L}])/giu, { pl: 1.5 }], [/[ąę]/gi, { pl: 3, lt: 2 }], [/ń/gi, { pl: 3 }], [/ć/gi, { pl: 2, hr: 2 }],
+      [/đ/gi, { hr: 5 }], [/[ěřů]/gi, { cs: 5 }], [/[ľĺŕ]/gi, { sk: 5 }], [/ô/gi, { sk: 2, fr: 2, pt: 2 }], [/[őű]/gi, { hu: 5 }],
+      [/[ėįųū]/gi, { lt: 5 }], [/[čšž]/gi, { cs: 1, sk: 1, sl: 1, hr: 1, lt: 1 }], [/[ňý]/gi, { cs: 1, sk: 1 }], [/[ñ¿¡]/gi, { es: 5 }],
+      [/[ãõ]/gi, { pt: 5 }], [/ç/gi, { fr: 2, pt: 2, tr: 2 }], [/[èêëùûœ]/gi, { fr: 3 }], [/à/gi, { fr: 1, it: 1, pt: 1 }],
+      [/[ìò]/gi, { it: 3 }], [/[îâ]/gi, { ro: 1, fr: 1, pt: 1 }], [/ß/gi, { de: 5 }], [/ü/gi, { de: 2, tr: 1, hu: 1 }],
+      [/ä/gi, { de: 1, sv: 1, fi: 1, sk: 1 }], [/ö/gi, { de: 1, sv: 1, fi: 1, tr: 1, hu: 1 }], [/[æø]/gi, { da: 3, no: 3 }],
+      // Spellings that tell even a three-word claim apart: "vaccinazioni", "verificación", "informação".
+      [/zion[ei](?![\p{L}])/giu, { it: 3 }], [/ci[óo]n(es)?(?![\p{L}])/giu, { es: 2 }], [/ção|ções/giu, { pt: 3 }],
+      [/å/gi, { sv: 2, da: 1, no: 1 }], [/é/gi, { fr: 1, pt: 0.5, hu: 0.5, es: 0.3, it: 0.3, cs: 0.3, sk: 0.3 }],
+      [/[áíóú]/gi, { es: 0.5, pt: 0.5, hu: 0.5, cs: 0.3, sk: 0.3, it: 0.2 }],
+    ];
+    for (const [re, weights] of HINTS) {
+      const n = (s.match(re) || []).length;
+      if (n) for (const [code, w] of Object.entries(weights)) add(code, n * w);
+    }
+    countWords(BLK.LATIN_LANGS);
+    return best();
+  },
+
+  /** Language of a text, also asking the browser's own detector (chrome.i18n.detectLanguage, Chrome's CLD;
+   *  Firefox has it too) when guessLang is unsure. Our guess goes first: it was more accurate on our tests,
+   *  CLD fills the gaps (very short claims). Returns "" when neither knows. */
+  async detectLang(text, fallback = "en") {
+    const guess = BLK.guessLang(text, fallback);
+    if (guess) return guess;
+    try {
+      const t = String(text || "").slice(0, 1000);
+      const r = await new Promise((resolve) => {
+        const p = api.i18n.detectLanguage(t, resolve);
+        if (p && typeof p.then === "function") p.then(resolve, () => resolve(null));
+      });
+      const top = r && r.languages && r.languages[0];
+      const code = top ? BLK.normLang(top.language) : "";
+      if (BLK.FACT_LANGS.includes(code)) return code;
+    } catch { /* no detector */ }
+    return "";
   },
 
   // Google News editions: language → [hl, gl, ceid language]. Others get just hl= and Google picks.
@@ -234,19 +326,100 @@ var BLK = Object.freeze({
     return svg;
   },
 
+  // English headline words that say nothing about the story: dropped from searches, but not used to
+  // detect English (a Spanish "Real Madrid" headline isn't English).
+  NEWS_WORDS: "says said say reveals revealed reveal report reports reported leak leaks leaked claims claim breaking exclusive update " +
+    "live video watch photos million billion thousand trillion accidental shocking amid finally get gets got true false fake real " +
+    "really confirms confirmed confirm",
+
+  // Small words that carry no meaning in a search, per language (English is always applied too).
+  FILLER_WORDS: Object.freeze({
+    en: "a an the and or but nor of in on at to for from by with as is are was were be been being this that these those it its into " +
+      "onto over under after before about than then so such not no you your we our they their he she his her i me my us how why what " +
+      "when who whom which will would could should may might can just more most very new now here there does did do has have had " +
+      "don doesn didn isn aren wasn weren won wouldn couldn shouldn all every each",
+    bg: "и или но а е са съм си сме сте ли бе беше бил била било били ще да не ни на в във за от до с със по при към през след преди над под " +
+      "между без че как какво кой коя кое кои който която което които защо кога къде тук там това този тази тези то той тя те ние вие аз " +
+      "ти му я ги го им й се също още само вече много най нов нова ново нови казва каза според един една едно всички всеки всяка всяко ето трябва има няма върху",
+    ru: "и или но а же ли не ни на в во за от до с со по при к ко из у о об про через после перед над под между без что как какой какая " +
+      "какое какие кто где когда почему это этот эта эти то тот та те он она оно они мы вы я ты его её их ему ей им был была было были " +
+      "будет есть быть также ещё уже очень новый новая новое новые сказал заявил для все всех весь вся всё каждый новом новой новых новым нового",
+    uk: "і й та або але а не ні на в у до за від з із зі по при через після перед над під між без що як який яка яке які хто де коли " +
+      "чому це цей ця ці те той ті він вона воно вони ми ви я ти його її їх йому їй їм був була було були буде є бути також ще вже дуже " +
+      "новий нова нове нові сказав заявив про для всі всіх весь вся все кожен нового новому новій нових новим",
+    pl: "i oraz lub albo ale a nie na w we do za od z ze po przy przez o u dla jak że co który która które którzy kto gdzie kiedy " +
+      "dlaczego to ten ta te tego tej jest są był była było były będzie być się też już bardzo nowy nowa nowe nowi powiedział według wszyscy wszystkich wszystko każdy nowego nowej nowych nowym",
+    cs: "a i nebo ale ne na v ve do za od z ze po při přes o u pro jak že co který která které kdo kde kdy proč to ten ta ty je jsou byl " +
+      "byla bylo byly bude být se také už velmi nový nová nové řekl podle všichni všech vše každý nového nových",
+    de: "der die das den dem des ein eine einen einem einer eines und oder aber nicht kein keine ist sind war waren wird werden wurde " +
+      "wurden sein hat haben hatte in im ins an am auf aus bei mit nach von vom zu zum zur für über unter vor durch um als wie dass was " +
+      "wer wo wann warum dies diese dieser dieses es er sie wir ihr ich du auch noch schon sehr neu neue neuer sagt sagte laut alle allen jeder jede jedes neuen neuem",
+    nl: "de het een en of maar niet geen is zijn was waren wordt worden werd werden heeft hebben had in op aan bij met naar van voor " +
+      "over onder door om als hoe dat wat wie waar wanneer waarom dit deze die er hij zij ze wij we jij ik ook nog al zeer erg nieuw " +
+      "nieuwe zegt zei volgens alle elke ieder",
+    fr: "le la les l d j n s un une des du de et ou mais ne pas plus a été est sont était étaient sera être ont avait avoir dans en au aux sur sous avec " +
+      "par pour sans chez entre vers comme que qu qui quoi quel quelle quels quelles où quand pourquoi ce cet cette ces il elle ils elles " +
+      "nous vous je tu on se sa son ses leur leurs aussi encore déjà très nouveau nouvelle nouveaux dit selon tous toutes tout chaque",
+    es: "el la los las lo un una unos unas y e o u a tras fue hoy hay pero no ni es son era eran fue fueron será ser ha han había haber está están en al del " +
+      "de con por para sin sobre bajo entre hacia como que qué quien quién cual cuál donde dónde cuando cuándo porque este esta estos " +
+      "estas ese esa eso esto se su sus le les nos también ya muy más nuevo nueva nuevos dice dijo según todos todas todo cada nuevas",
+    it: "il lo la i l e gli le un uno una ed oppure ma non né è sono era erano sarà essere ha hanno aveva avere in al allo alla ai agli alle " +
+      "del dello della dei degli delle di da dal dalla con su sul sulla per tra fra senza come che chi cosa quale dove quando perché " +
+      "questo questa questi queste quello quella si suo sua suoi loro anche già molto più nuovo nuova nuovi dice detto secondo tutti tutte tutto ogni nuove",
+    pt: "o os as um uma uns umas e ou após até mas não nem é são era eram foi foram será ser tem têm tinha ter está estão em no na nos nas ao aos " +
+      "à às do da dos das de com por pelo pela para sem sobre entre como que quem qual onde quando porque este esta estes estas esse " +
+      "essa isso isto se seu sua seus suas lhe também já muito mais novo nova novos diz disse segundo todos todas todo cada novas",
+    ro: "și sau dar nu este sunt era erau va fi au avea în la pe cu din de pentru fără despre sub între ca că ce cine care unde când " +
+      "acest această aceste acel acea el ea ei ele noi voi eu tu se său sa săi lui lor deja foarte mai nou nouă spune spus potrivit un " +
+      "unei unui toți toate tot fiecare",
+    el: "ο η το οι τα του της των τον την ένας μία ένα και ή αλλά δεν μη είναι ήταν θα να σε στο στη στην στον στα στους στις από με " +
+      "για χωρίς πάνω κάτω μεταξύ ως όπως ότι πως τι ποιος ποια ποιο πού πότε γιατί αυτό αυτός αυτή αυτά αυτοί επίσης ήδη πολύ πιο νέο " +
+      "νέα νέος λέει είπε σύμφωνα όλους όλοι όλα όλες όλη κάθε νέες νέους",
+    tr: "ve veya ya da ama fakat değil bir bu şu de ile için gibi kadar göre ne kim hangi nerede zaman neden niçin çok daha en yeni " +
+      "olan oldu olarak var yok ise mi mı mu mü ki diye dedi söyledi tüm bütün her",
+    sk: "a aj alebo ale nie na v vo do za od z zo po pri cez o u pre ako že čo ktorý ktorá ktoré kto kde kedy prečo to ten tá tí je " +
+      "sú bol bola bolo boli bude byť sa si tiež už veľmi nový nová nové všetkých všetci každý",
+    hu: "a az egy és vagy de nem is van volt lesz hogy mint ez azt ezt meg már még csak minden új szerint után előtt alatt között " +
+      "nélkül számára miatt mert ha amely aki amit akik kell lehet fog be ki el",
+    sv: "och eller men inte är var blir blev har hade en ett den det de att som för från till med på i av om under över efter före " +
+      "utan mellan också redan mycket ny nya nytt alla säger sa enligt vi ni jag han hon man sig nästa",
+    da: "og eller men ikke er var bliver blev har havde en et den det de at som for fra til med på i af om under over efter før uden " +
+      "mellem også allerede meget ny nye nyt alle siger sagde ifølge vi jeg han hun man sig næste hvad mig dig",
+    no: "og eller men ikke er var blir ble har hadde en et ei den det de at som for fra til med på i av om under over etter før uten " +
+      "mellom også allerede veldig ny nye nytt alle sier sa ifølge vi jeg han hun man seg neste hva meg deg",
+    fi: "ja tai mutta ei on oli ovat olivat se ne että kun jos kuin myös jo hyvin uusi uuden uusia kaikki kaikille joka jotka mikä " +
+      "mitä miten miksi missä tämä tämän nämä hän he me te minä sinä mukaan alkaen ensi",
+    hr: "i ili ali ne je su bio bila bilo bili će biti u na za od do s sa po pri kroz o iz prema kao da što koji koja koje tko gdje " +
+      "kada zašto to taj ta ti se si također već vrlo novi nova novo sve svi sljedećeg",
+    sl: "in ali ampak ne je so bil bila bilo bili bo biti v na za od do s z po pri skozi o iz proti kot da kaj ki kateri katera kdo " +
+      "kje kdaj zakaj to ta te se si tudi že zelo nov nova novo vse vsi",
+    lt: "ir ar bet ne yra buvo bus būti į iš su be per po prie apie nuo iki kad kaip kas kuris kuri kurie kur kada kodėl tai šis ši " +
+      "tas ta jis ji jie mes jūs taip pat jau labai naujas nauja nauji visi visiems",
+    id: "dan atau tetapi tidak bukan adalah ini itu yang di ke dari untuk dengan pada dalam oleh sebagai juga sudah akan telah bisa " +
+      "dapat ada para semua baru mulai karena jika saat tersebut kami kita mereka dia",
+    vi: "và hoặc nhưng không là của có cho các những được trong một này với người đã từ sẽ đang tại theo về khi thì cũng rất mới " +
+      "tất cả tới",
+    hi: "और या लेकिन नहीं है हैं था थी थे होगा के की का में से ने को पर लिए यह वह इस उस एक भी तो ही सभी नए नई कहा",
+    mr: "आणि किंवा पण नाही आहे आहेत होता होती होते च्या चा ची चे ने ला साठी मध्ये पासून हा ही हे तो ती ते एक सर्व नवीन केला केली केले",
+  }),
+
   /** Short keyword query from a headline/claim: drops filler words, keeps names and numbers.
-   *  "Deutsche Bank Leak Reveals $582 Million In Epstein Payments, …" → "Deutsche Bank $582 Epstein Payments" */
-  keywords(text, max = 5, numbers = true) {
-    const FILLER = new Set(("a an the and or but nor of in on at to for from by with as is are was were be been being this that these " +
-      "those it its into onto over under after before about than then so such not no you your we our they their he she his her i " +
-      "me my us how why what when who whom which will would could should may might can just more most very new says said say " +
-      "reveals revealed reveal report reports reported leak leaks leaked claims claim breaking exclusive update live video watch " +
-      "photos million billion thousand trillion accidental shocking amid finally now here there get gets got true " +
-      "false fake real really confirms confirmed confirm does did do has have had").split(" "));
-    const firstClause = String(text || "").split(/[,:;|–—]|\s-\s/)[0];
-    const words = firstClause.replace(/[“”"'’‘()[\]?!]/g, "").split(/[^\p{L}\p{N}$%.£€]+/u)
+   *  "Deutsche Bank Leak Reveals $582 Million In Epstein Payments, …" → "Deutsche Bank $582 Epstein Payments"
+   *  lang: the text's language, so its own small words are dropped too. */
+  keywords(text, max = 5, numbers = true, lang = "en") {
+    const FILLER = new Set(`${BLK.FILLER_WORDS.en} ${BLK.NEWS_WORDS} ${lang !== "en" ? BLK.FILLER_WORDS[lang] || "" : ""}`.split(" "));
+    // Apostrophes split words ("l'artiste", "Trump's"; the single letters left are dropped below), except in
+    // Ukrainian, where they are part of the word ("прем'єр"). \p{M} keeps vowel signs (Hindi, Tamil…) in words.
+    const uk = lang === "uk";
+    const clean = (clause) => clause.replace(/[“”"()[\]?!¿¡«»„]/g, "").replace(/['’‘]/g, uk ? "'" : " ")
+      .split(uk ? /[^\p{L}\p{M}\p{N}'$%.£€]+/u : /[^\p{L}\p{M}\p{N}$%.£€]+/u)
       .map((w) => w.replace(/^\.+|\.+$/g, ""))
       .filter((w) => w.length > 1 && !FILLER.has(w.toLowerCase()) && (numbers || !/\d/.test(w)));
+    // The main clause of a headline comes first; if it is too short ("Правителството обяви, че …"),
+    // the following clauses fill up the search.
+    const clauses = String(text || "").split(/[,:;|–—]|\s-\s/);
+    let words = clean(clauses[0]);
+    for (let i = 1; i < clauses.length && words.length < Math.min(3, max); i++) words = words.concat(clean(clauses[i]));
     return (words.length ? words : String(text || "").split(/\s+/)).slice(0, max).join(" ");
   },
 
@@ -256,12 +429,12 @@ var BLK = Object.freeze({
     const t = String(text || "").replace(/\s+/g, " ").trim().slice(0, 300);
     const answer = BLK.FACT_LANGS.includes(langs.answer) ? langs.answer : "en";
     const search = BLK.FACT_LANGS.includes(langs.search) ? langs.search : "";
-    const textLang = langs.textLang || BLK.guessLang(t, answer);
+    const textLang = langs.textLang || BLK.guessLang(t, answer) || answer;
     // News edition and fact-checker language filter follow the language the search text is in.
-    if (engine === "news") return `https://news.google.com/search?q=${encodeURIComponent(BLK.keywords(t, 6))}&${BLK.newsParams(textLang)}`;
+    if (engine === "news") return `https://news.google.com/search?q=${encodeURIComponent(BLK.keywords(t, 6, true, textLang))}&${BLK.newsParams(textLang)}`;
     // Fact-checker search matches reviewed claims by keyword: short, no figures. Its hl= is the claim-language filter.
     if (engine === "factcheck") {
-      return `https://toolbox.google.com/factcheck/explorer/search/${encodeURIComponent(BLK.keywords(t, 5, false))};hl=${BLK.googleLang(textLang)}`;
+      return `https://toolbox.google.com/factcheck/explorer/search/${encodeURIComponent(BLK.keywords(t, 5, false, textLang))};hl=${BLK.googleLang(textLang)}`;
     }
     if (engine === "chatgpt") {
       const where = pageUrl ? ` (I saw it here: ${pageUrl})` : "";
@@ -319,7 +492,7 @@ var BLK = Object.freeze({
       trusted: list(s.trusted),
       uiLang: BLK.UI_LANGS.includes(s.uiLang) ? s.uiLang : "",
       factLang: BLK.FACT_LANGS.includes(s.factLang) ? s.factLang : "",
-      factSearchLang: BLK.FACT_LANGS.includes(s.factSearchLang) ? s.factSearchLang : "",
+      factSearchLang: BLK.validSearchLang(s.factSearchLang),
     };
   },
 
